@@ -70,6 +70,10 @@ All notable changes to this project are documented here. Format based on
   handlers) now return MCP `isError` tool results on any failure (unknown tool,
   downstream throwing, bad args) instead of throwing a protocol error, so one bad
   call never takes down the proxy session. +3 tests.
+- **`list_servers` meta-tool (P2-16)** — the federated server exposes a third
+  tool, `list_servers`, returning the connected downstream servers + per-server
+  tool counts + total, for model/operator routing debug. `serverSummary` exposed
+  (pure). +1 test.
 - **Federated server + `call_tool` (P2-9, invocation model A)** —
   `createServerFromIndex(index)` exposes two static tools: `retrieve_tools`
   (discovery, hydrated schemas) and `call_tool(name, arguments)` (execution —
