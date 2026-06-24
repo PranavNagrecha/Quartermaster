@@ -26,6 +26,10 @@ All notable changes to this project are documented here. Format based on
   + MRR for all four rankers across the heritage corpus and synthetic 50–1000-tool
   manifests, plus token-reduction (~95–99%) and the two-regime interpretation.
 
+- **Explain mode** — `search(query, k, { explain: true })` adds a `matches`
+  per-term `{ term, contribution }[]` breakdown (sorted, summing to the score) to
+  each candidate, for tuning. Off by default (no field added).
+
 ### Changed
 
 - **Weighted synonym expansion** (`expansionWeight`, default `0.5`, `0` disables):
