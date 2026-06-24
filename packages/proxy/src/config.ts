@@ -6,7 +6,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import type { DownstreamServer, ProxyConfig } from './index.js';
-import type { Tool } from '@pranavnpm/core';
+import type { Tool } from '@quartermaster/core';
 
 const isObject = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v);

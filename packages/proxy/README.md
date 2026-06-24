@@ -1,10 +1,16 @@
 # quartermaster-mcp
 
-A drop-in MCP proxy that federates N downstream MCP servers behind one offline
-`retrieve_tools` function. **Status:** the MCP server + `retrieve_tools` tool are
-real and tested over a **static** manifest (P2-1); downstream federation
-(spawning servers, aggregating `tools/list`, forwarding calls) is in progress
-(P2-3/P2-4). The ranker is [`@pranavnpm/core`](../core/).
+A drop-in, offline MCP proxy that federates N downstream MCP servers behind two
+tools — `retrieve_tools` (a ranked, schema-hydrated shortlist for a query) and
+`call_tool` (forwards the chosen tool to the right downstream). The client loads
+two tools instead of every downstream schema.
+
+**Self-contained:** the BM25/TF-IDF ranker is bundled in, so the only runtime
+dependency is the MCP SDK — no embedding model, no network, no API key.
+
+```bash
+npx quartermaster-mcp --config ./quartermaster.json
+```
 
 ## Idea
 
@@ -22,19 +28,6 @@ the host LLM picks from them.
 
 ## Config
 
-Today (P2-1) — a static manifest:
-
-```json
-{
-  "tools": [
-    { "name": "github.create_issue", "description": "Open a new issue in a repository" },
-    { "name": "slack.post_message",  "description": "Send a message to a Slack channel" }
-  ],
-  "synonyms": { "bug": ["issue"] },
-  "k": 8
-}
-```
-
 Federate live downstream servers (`${VAR}` is resolved from the environment at
 launch; an unset var fails fast):
 
@@ -51,22 +44,13 @@ launch; an unset var fails fast):
 }
 ```
 
-## API (programmatic)
-
-```ts
-import { createServer, retrieveTools, buildStaticRouter } from 'quartermaster-mcp';
-
-const server = createServer(config);              // MCP Server exposing retrieve_tools
-// await startServer(config)                       // boot over stdio (used by the bin, P2-5)
-
-const router = buildStaticRouter(config);
-retrieveTools(router, 'file a bug', 5);            // { confidence, guidance, candidates }
-```
+A static manifest also works for discovery-only use — give `tools` (a fixed
+`{ name, description }[]`) instead of `servers`, optional `synonyms`, and `k`.
 
 Run it:
 
 ```bash
-quartermaster-mcp --config ./quartermaster.json
+npx quartermaster-mcp --config ./quartermaster.json
 ```
 
 Federated mode when the config has `servers` (spawns + aggregates them); static

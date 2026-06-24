@@ -14,10 +14,11 @@ instead of 200 — no embedding model, no network, no API key.
 
 ---
 
-> **Status: early / alpha — the P0 benchmark verdict is in.** The core ranker
-> works and is extracted from a production system (see [Heritage](#heritage)); the
-> proxy (`quartermaster-mcp`) is **built and runnable end-to-end** (federation +
-> `retrieve_tools` + `call_tool`); the Claude Code plugin is still scaffolded.
+> **Status: alpha — on npm (`npx quartermaster-mcp`).** The ranker is extracted
+> from a production system (see [Heritage](#heritage)); the proxy
+> (`quartermaster-mcp`) is **built, published, and runnable end-to-end**
+> (federation + `retrieve_tools` + `call_tool`); the Claude Code plugin is still
+> scaffolded.
 >
 > **Verdict — GO.** Zero-dependency BM25 is a genuinely good router: **91.5%
 > recall@8** on a real 171-tool manifest, beating a substring baseline
@@ -80,48 +81,11 @@ manifests (where the vocabulary gap bites) while adding noise on rich ones — s
 expansion is an opt-in toggle, not a silver bullet. The bet that paid off: you
 can get competitive tool routing with **no embedding model at all**.
 
-## Quick start (library)
+## Quick start
 
-> **Alpha — not yet on npm.** Until the first release, build from source:
-> `pnpm install && pnpm -r build`, then import `packages/core/dist`. The `npm`
-> command below uses the reserved package name.
-
-```bash
-npm install @pranavnpm/core
-```
-
-```ts
-import { createRouter } from '@pranavnpm/core';
-
-const router = createRouter([
-  { name: 'github.create_issue', description: 'Open a new issue in a repository' },
-  { name: 'github.search_code',  description: 'Search code across repositories' },
-  { name: 'jira.create_ticket',  description: 'Create a Jira ticket' },
-  // ...your full MCP manifest
-]);
-
-router.search('file a bug on the repo', 3);
-// → [{ tool: 'github.create_issue', score: 4.21, category: null }, ...]
-```
-
-Optionally bridge business vocabulary to technical terms with a synonym map:
-
-```ts
-const router = createRouter(tools, {
-  synonyms: { bug: ['issue', 'defect'], ticket: ['issue'] },
-});
-```
-
-For agents, prefer `route()` over `search()` — it adds a `confidence`
-(`none` / `low` / `high`) and a `guidance` string, so the model knows when *not*
-to trust the shortlist. Synonym weighting auto-tunes to the corpus
-(`expansionWeight` defaults off on rich descriptions, on for terse ones; override
-explicitly if you want).
-
-## Quick start (proxy)
-
-Put Quartermaster in front of N MCP servers; agents load `retrieve_tools` +
-`call_tool` instead of every downstream schema. Point it at a `quartermaster.json`:
+Quartermaster is a single package — `quartermaster-mcp`. Put it in front of N MCP
+servers; agents load `retrieve_tools` + `call_tool` instead of every downstream
+schema. Point it at a `quartermaster.json`:
 
 ```json
 {
@@ -133,7 +97,7 @@ Put Quartermaster in front of N MCP servers; agents load `retrieve_tools` +
 ```
 
 ```bash
-quartermaster-mcp --config ./quartermaster.json
+npx quartermaster-mcp --config ./quartermaster.json
 ```
 
 It spawns the downstream servers, aggregates their tools, and serves a ranked,
@@ -143,13 +107,15 @@ tool through `call_tool`. See [`packages/proxy`](packages/proxy/).
 **Host recipe:** [Use Quartermaster in Cursor](docs/recipes/cursor.md) (the same
 `mcpServers` config works for Claude Desktop).
 
-## Packages
+## What ships
 
-| Package | What it is |
-|---|---|
-| [`@pranavnpm/core`](packages/core/) | The zero-dependency BM25/TF-IDF ranker. Framework-agnostic. |
-| [`quartermaster-mcp`](packages/proxy/) | Drop-in MCP proxy that federates downstream servers behind one `retrieve_tools`. |
-| [`.claude-plugin/`](.claude-plugin/) | Claude Code plugin manifest (plugs into the custom tool-search seam). |
+One package — **[`quartermaster-mcp`](packages/proxy/)** — the drop-in MCP proxy
+that federates downstream servers behind one `retrieve_tools` + `call_tool`. The
+zero-dependency BM25/TF-IDF ranker that powers it lives in
+[`packages/core`](packages/core/) and is **bundled into the proxy**; it is not
+published separately, so the proxy installs self-contained (its only runtime
+dependency is the MCP SDK). A [`.claude-plugin/`](.claude-plugin/) manifest is
+also included for the Claude Code tool-search seam.
 
 ## Heritage
 

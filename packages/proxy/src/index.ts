@@ -3,7 +3,7 @@
  *
  * Federates N downstream MCP servers behind two meta-tools: `retrieve_tools`
  * (a ranked, schema-hydrated, confidence-annotated shortlist for a natural-language
- * query, built by the offline @pranavnpm/core router) and `call_tool` (forwards
+ * query, built by the offline @quartermaster/core router) and `call_tool` (forwards
  * the chosen tool to the right downstream). The client loads two tools instead of
  * every downstream schema. It advises; the host LLM decides.
  *
@@ -13,7 +13,7 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
-import { createRouter, type Router, type Tool } from '@pranavnpm/core';
+import { createRouter, type Router, type Tool } from '@quartermaster/core';
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { loadConfig, parseConfig } from './config.js';
 import { applyOverlays, buildToolIndex, interpolateEnv, namespaceTools } from './downstream.js';
