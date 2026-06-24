@@ -112,9 +112,13 @@ const buildDoc = (tool: Tool, nameWeight: number): string => {
   return `${name} ${tool.description ?? ''} ${tool.keywords ?? ''}`;
 };
 
-interface Indexed {
+interface DocRecord {
+  readonly name: string;
+  readonly category: string | null;
   readonly tokens: string[];
   readonly tf: Map<string, number>;
+  /** Unit-normalized TF-IDF vector; populated only when ranker === 'tfidf'. */
+  tfidf?: Map<string, number>;
 }
 
 /**
@@ -129,9 +133,7 @@ export const createRouter = (tools: readonly Tool[], config: RouterConfig = {}) 
   const k1 = config.k1 ?? 1.5;
   const b = config.b ?? 0.75;
 
-  const names: string[] = [];
-  const categories: (string | null)[] = [];
-  const docs: Indexed[] = [];
+  const records: DocRecord[] = [];
   const df = new Map<string, number>();
   let totalLen = 0;
 
@@ -140,13 +142,11 @@ export const createRouter = (tools: readonly Tool[], config: RouterConfig = {}) 
     const tf = new Map<string, number>();
     for (const t of tokens) tf.set(t, (tf.get(t) ?? 0) + 1);
     for (const term of tf.keys()) df.set(term, (df.get(term) ?? 0) + 1);
-    names.push(tool.name);
-    categories.push(tool.category ?? null);
-    docs.push({ tokens, tf });
+    records.push({ name: tool.name, category: tool.category ?? null, tokens, tf });
     totalLen += tokens.length;
   }
 
-  const N = docs.length;
+  const N = records.length;
   const avgdl = N > 0 ? totalLen / N : 0;
   // BM25 idf (with +0.5 smoothing) and TF-IDF idf share the same df map.
   const idfBm25 = (term: string): number => {
@@ -156,19 +156,18 @@ export const createRouter = (tools: readonly Tool[], config: RouterConfig = {}) 
   const idfTfidf = (term: string): number => Math.log((N + 1) / ((df.get(term) ?? 0) + 1)) + 1;
 
   // Pre-compute unit-normalized TF-IDF document vectors only if needed.
-  const tfidfVecs: Map<string, number>[] = [];
   if (ranker === 'tfidf') {
-    for (const { tokens, tf } of docs) {
+    for (const rec of records) {
       const vec = new Map<string, number>();
       let norm = 0;
-      for (const [term, f] of tf) {
-        const w = (f / (tokens.length || 1)) * idfTfidf(term);
+      for (const [term, f] of rec.tf) {
+        const w = (f / (rec.tokens.length || 1)) * idfTfidf(term);
         vec.set(term, w);
         norm += w * w;
       }
       norm = Math.sqrt(norm) || 1;
       for (const [term, w] of vec) vec.set(term, w / norm);
-      tfidfVecs.push(vec);
+      rec.tfidf = vec;
     }
   }
 
@@ -180,18 +179,17 @@ export const createRouter = (tools: readonly Tool[], config: RouterConfig = {}) 
 
     if (ranker === 'bm25') {
       const qSet = new Set(qTokens);
-      for (let i = 0; i < N; i++) {
-        const { tokens, tf } = docs[i];
-        const dl = tokens.length;
+      for (const rec of records) {
+        const dl = rec.tokens.length;
         let score = 0;
         for (const term of qSet) {
-          const f = tf.get(term);
+          const f = rec.tf.get(term);
           if (f === undefined) continue;
           const idf = idfBm25(term);
           score += idf * ((f * (k1 + 1)) / (f + k1 * (1 - b + b * (dl / (avgdl || 1)))));
         }
         if (score > 0) {
-          scored.push({ tool: names[i], score: Math.round(score * 1000) / 1000, category: categories[i] });
+          scored.push({ tool: rec.name, score: Math.round(score * 1000) / 1000, category: rec.category });
         }
       }
     } else {
@@ -205,16 +203,17 @@ export const createRouter = (tools: readonly Tool[], config: RouterConfig = {}) 
       }
       qnorm = Math.sqrt(qnorm) || 1;
       if (qvec.size === 0) return [];
-      for (let i = 0; i < N; i++) {
-        const vec = tfidfVecs[i];
+      for (const rec of records) {
+        const vec = rec.tfidf;
+        if (vec === undefined) continue;
         let dot = 0;
-        const [small, large] = qvec.size <= vec.size ? [qvec, vec] : [vec, qvec];
-        for (const [term, w] of small) {
-          const o = large.get(term);
-          if (o !== undefined) dot += w * o;
+        if (qvec.size <= vec.size) {
+          for (const [term, w] of qvec) { const o = vec.get(term); if (o !== undefined) dot += w * o; }
+        } else {
+          for (const [term, w] of vec) { const o = qvec.get(term); if (o !== undefined) dot += w * o; }
         }
         if (dot > 0) {
-          scored.push({ tool: names[i], score: Math.round((dot / qnorm) * 1000) / 1000, category: categories[i] });
+          scored.push({ tool: rec.name, score: Math.round((dot / qnorm) * 1000) / 1000, category: rec.category });
         }
       }
     }
