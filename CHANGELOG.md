@@ -141,6 +141,12 @@ All notable changes to this project are documented here. Format based on
 
 ### Changed
 
+- **Docs truth pass** — fixed stale docs that still called the proxy a "scaffold"
+  and listed already-done "good first issues": `docs/quickstart.md` (real proxy
+  section), `CONTRIBUTING.md` (current layout + real open issues), `examples/README.md`
+  (lists the example configs that actually exist). Added explicit "alpha — not yet
+  on npm, build from source" notes to the README, quickstart, and Cursor recipe
+  (so `npm`/`npx` instructions don't mislead while the packages are unpublished).
 - **Docs sync (P2-17)** — root README, the proxy package README, and the
   `index.ts` header no longer call the proxy "scaffolded" (it's built + runnable):
   real proxy quick-start (config + `quartermaster-mcp --config`) and a `route()` /
