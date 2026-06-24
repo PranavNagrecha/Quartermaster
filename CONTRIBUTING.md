@@ -27,13 +27,17 @@ pnpm -r test
 
 ## Where things are
 
-- `packages/core` — the ranker (the heart).
-- `packages/proxy` — the MCP proxy server (scaffold; help wanted).
-- `bench` — recall@K harness.
-- `docs` — quickstart, how-it-works, benchmarks.
+- `packages/core` — the ranker (the heart): BM25/TF-IDF, weighted + corpus-aware
+  expansion, `route()`.
+- `packages/proxy` — the MCP proxy server: federation, `retrieve_tools` +
+  `call_tool` + `list_servers`, config loader, env interpolation.
+- `bench` — recall@K harness + fixtures (synthetic, heritage, blind real-MCP).
+- `docs` — quickstart, how-it-works, choosing, benchmarks, recipes.
 
 ## Good first issues
 
-- Wire the proxy's downstream `tools/list` aggregation (`packages/proxy`).
-- Add bench fixtures at 200 / 500 / 1000 tools.
-- Test the zero-dependency-hybrid thesis (BM25 + expansion) and report numbers.
+- **P1-6** API-docs pass — JSDoc on every export; keep the package READMEs in sync.
+- **P3-1** a Claude Code plugin skill that drives the proxy's `retrieve_tools`.
+- **P3-2** document Anthropic's `defer_loading` / `tool_reference` integration path.
+- **P2-13** opt-in debug logging (`QM_DEBUG=1` → stderr: query / top-K / matched server).
+- An `examples/static-demo/` a non-technical reader can run to see the funnel work.

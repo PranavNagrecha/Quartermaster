@@ -45,6 +45,15 @@ Edit `~/.cursor/mcp.json` (or the project's `.cursor/mcp.json`):
 
 Use an **absolute** path to the config. Restart Cursor.
 
+> **While unpublished (alpha):** `npx quartermaster-mcp` won't resolve until the
+> package is on npm. Until then, build from source (`pnpm install && pnpm -r build`)
+> and point Cursor at the local bin instead:
+> ```json
+> { "command": "node",
+>   "args": ["/abs/path/to/quartermaster/packages/proxy/bin/quartermaster-mcp.js",
+>            "--config", "/abs/path/to/quartermaster.json"] }
+> ```
+
 ## 3. Use it
 
 Cursor now sees just `retrieve_tools` + `call_tool`. When you ask it to do

@@ -1,13 +1,20 @@
 # examples/
 
-Worked examples — the proof that the funnel does something useful on real
-manifests. (Following the "show real outputs" convention; populate as the
-project matures.)
+## Available now
 
-Planned:
+- [`cursor/quartermaster.json`](cursor/quartermaster.json) — a proxy config that
+  federates the filesystem + GitHub MCP servers behind one `retrieve_tools`.
+  Used by the [Cursor recipe](../docs/recipes/cursor.md) (same config works for
+  Claude Desktop). Validated by a test, so it can't drift.
+- [`synonyms/business-to-dev.json`](synonyms/business-to-dev.json) — a starter
+  synonym overlay (bug→issue, folder→directory, …) you can point a config's
+  `synonymsFile` at.
 
-- `github-jira-slack/` — three real MCP servers behind one `retrieve_tools`,
-  with a transcript of queries → shortlists.
-- `large-manifest/` — a 500-tool manifest showing token reduction and recall@K.
-- `salesforce-heritage/` — the sf-intelligence 170-tool corpus the ranker was
-  extracted from.
+The funnel's real numbers on real/ synthetic manifests live in
+[`docs/benchmarks.md`](../docs/benchmarks.md) (reproduce with `pnpm bench`).
+
+## Planned
+
+- `static-demo/` — a runnable hello-world (a tiny manifest + a few queries) so a
+  non-technical reader can see the ranking work in a few seconds.
+- `github-jira-slack/` — a multi-server transcript of queries → shortlists.
