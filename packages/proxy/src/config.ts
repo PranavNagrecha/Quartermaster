@@ -36,7 +36,7 @@ function validateTools(v: unknown, src: string): Tool[] {
 function validateServers(v: unknown, src: string): DownstreamServer[] {
   if (v === undefined) return [];
   if (!Array.isArray(v)) throw new Error(`quartermaster: ${src} "servers" must be an array.`);
-  return v.map((s, i) => {
+  const out = v.map((s, i) => {
     if (!isObject(s)) throw new Error(`quartermaster: ${src} servers[${i}] must be an object.`);
     if (typeof s.id !== 'string' || s.id.trim() === '') {
       throw new Error(`quartermaster: ${src} servers[${i}] is missing a non-empty string "id".`);
@@ -57,6 +57,15 @@ function validateServers(v: unknown, src: string): DownstreamServer[] {
       env: s.env as Record<string, string> | undefined,
     };
   });
+  // Ids must be unique — they namespace tool names, so a collision would shadow tools.
+  const seen = new Set<string>();
+  for (const s of out) {
+    if (seen.has(s.id)) {
+      throw new Error(`quartermaster: ${src} has a duplicate server id "${s.id}" — ids must be unique (they namespace tool names).`);
+    }
+    seen.add(s.id);
+  }
+  return out;
 }
 
 function validateSynonyms(v: unknown, src: string): Record<string, string[]> | undefined {

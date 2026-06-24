@@ -62,6 +62,13 @@ test('rejects a tool missing a name', () => {
   assert.throws(() => parseConfig(JSON.stringify({ tools: [{ description: 'x' }] })), /tools\[0\] is missing/);
 });
 
+test('rejects duplicate server ids (they namespace tool names)', () => {
+  assert.throws(
+    () => parseConfig(JSON.stringify({ servers: [{ id: 'gh', command: 'a' }, { id: 'gh', command: 'b' }] })),
+    /duplicate server id "gh"/,
+  );
+});
+
 test('rejects a server missing a command', () => {
   assert.throws(() => parseConfig(JSON.stringify({ servers: [{ id: 'gh' }] })), /missing.*"command"/);
 });

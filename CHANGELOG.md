@@ -91,6 +91,9 @@ All notable changes to this project are documented here. Format based on
   user-intent queries (not from synonym tables), scored BM25-only. Honest
   external-validity floor — ~37% R@1 / ~73% R@8 untuned — published in
   `docs/benchmarks.md` with the warts (substring edges R@1 on short descriptions).
+- **Name-collision policy (P2-14)** — `parseConfig` rejects duplicate server ids
+  (they namespace tool names, so a collision would shadow tools); cross-server
+  same-named tools stay distinct via `server.tool` namespacing. +2 tests.
 - **Bare tool name stored at index time (P2-18)** — `FederatedIndex` now carries
   a `toolToBare` map captured during aggregation; `resolveCall` looks the bare
   downstream name up instead of deriving it by slicing the namespaced name —
