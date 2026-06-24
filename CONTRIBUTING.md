@@ -4,7 +4,7 @@ Thanks for your interest! Quartermaster is small on purpose.
 
 ## The one rule
 
-**`@quartermaster/core` stays zero-dependency and has no embedding model.** That
+**`@pranavnpm/core` stays zero-dependency and has no embedding model.** That
 constraint *is* the product. Accuracy improvements must come from better lexical
 ranking, query expansion, or light offline techniques — not by adding a model.
 If you want an embedding-backed ranker, that belongs in a separate optional

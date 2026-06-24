@@ -1,5 +1,5 @@
 {
-  "name": "@quartermaster/core",
+  "name": "@pranavnpm/core",
   "version": "0.1.0",
   "description": "Offline, zero-dependency BM25/TF-IDF tool ranker — funnel many tools down to a ranked shortlist.",
   "type": "module",

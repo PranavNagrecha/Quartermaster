@@ -6,7 +6,7 @@ Three ways to tackle "too many tools." Pick by **what you're building** and
 ## Quick decision
 
 - **Building your own agent / app** (you call an LLM yourself, you hold the tool
-  list in process) → use the **`@quartermaster/core` library**. Rank the tools,
+  list in process) → use the **`@pranavnpm/core` library**. Rank the tools,
   hand the shortlist to your prompt. Zero dependencies, nothing to run.
 - **Using an MCP client** (Claude Code, Cursor, Claude Desktop, Continue, Cline)
   with **several MCP servers** and the tool list is bloating context → use the
@@ -18,7 +18,7 @@ Three ways to tackle "too many tools." Pick by **what you're building** and
 
 ## Comparison
 
-| | `@quartermaster/core` | `quartermaster-mcp` | Anthropic Tool Search |
+| | `@pranavnpm/core` | `quartermaster-mcp` | Anthropic Tool Search |
 |---|---|---|---|
 | Form | library (import) | MCP stdio proxy (run) | host/API feature |
 | You provide | the tool manifest | downstream MCP servers | tools w/ `defer_loading` |

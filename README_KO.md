@@ -45,11 +45,11 @@ Quartermaster는 결정하지 않습니다. 순위가 매겨진 후보 목록을
 ## 빠른 시작
 
 ```bash
-npm install @quartermaster/core
+npm install @pranavnpm/core
 ```
 
 ```ts
-import { createRouter } from '@quartermaster/core';
+import { createRouter } from '@pranavnpm/core';
 const router = createRouter(tools);
 router.search('버그를 등록하고 싶어요', 3);
 ```

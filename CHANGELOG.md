@@ -6,7 +6,7 @@ All notable changes to this project are documented here. Format based on
 ## [Unreleased]
 
 ### Added
-- `@quartermaster/core` — offline, zero-dependency tool ranker (BM25 default,
+- `@pranavnpm/core` — offline, zero-dependency tool ranker (BM25 default,
   TF-IDF cosine alternative) with configurable synonym query-expansion. Extracted
   and generalized from sf-intelligence's semantic funnel.
 - `quartermaster-mcp` — drop-in MCP proxy: federates N downstream MCP servers
@@ -91,7 +91,7 @@ All notable changes to this project are documented here. Format based on
   gets the full tool definition (name + description + schema) for just the
   shortlist — the token win without losing callability. +2 tests.
 - **Decision doc (P3-5)** — [`docs/choosing.md`](docs/choosing.md): when to use the
-  `@quartermaster/core` library vs the `quartermaster-mcp` proxy vs Anthropic's
+  `@pranavnpm/core` library vs the `quartermaster-mcp` proxy vs Anthropic's
   native Tool Search, with a comparison table. Linked from the README nav.
 - **Cursor host recipe (P3-3)** — [`docs/recipes/cursor.md`](docs/recipes/cursor.md)
   + a committed example proxy config (`examples/cursor/quartermaster.json`): a
@@ -126,7 +126,7 @@ All notable changes to this project are documented here. Format based on
 - **Proxy MCP server (P2-1)** — `quartermaster-mcp` now exposes a real
   `retrieve_tools` tool over MCP (low-level `Server`), returning a
   confidence-annotated shortlist *with descriptions* from a static config
-  manifest via `@quartermaster/core`'s `route()`. `buildStaticRouter` fails loud
+  manifest via `@pranavnpm/core`'s `route()`. `buildStaticRouter` fails loud
   on an empty manifest. Real smoke tests added; the proxy `test` script no longer
   swallows failures (`|| true` removed). Downstream federation + bin wiring follow.
 - **Rich candidates** — `search(query, k, { includeDescription: true })` echoes
@@ -146,6 +146,9 @@ All notable changes to this project are documented here. Format based on
 
 ### Changed
 
+- **Core package renamed `@quartermaster/core` → `@pranavnpm/core`** for the
+  initial npm release (the `@quartermaster` org doesn't exist; published under the
+  author's username scope). The proxy and all imports/docs updated; library API unchanged.
 - **Docs truth pass** — fixed stale docs that still called the proxy a "scaffold"
   and listed already-done "good first issues": `docs/quickstart.md` (real proxy
   section), `CONTRIBUTING.md` (current layout + real open issues), `examples/README.md`
