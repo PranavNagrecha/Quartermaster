@@ -6,3 +6,7 @@ dist/
 .pnpm-store/
 coverage/
 bench/results/
+
+# Local working docs — not part of the published repo
+BACKLOG.md
+NOTES.md
