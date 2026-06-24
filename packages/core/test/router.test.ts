@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { performance } from 'node:perf_hooks';
 import { test } from 'node:test';
 import { createRouter, tokenize } from '../src/index.ts';
 
@@ -181,4 +182,25 @@ test('CJK is a known tokenizer limitation: non-Latin queries do not match, but d
   const router = createRouter([{ name: 'search.tool', description: '搜索代码 search code' }]);
   assert.deepEqual(router.search('搜索代码'), []); // CJK stripped → no tokens (documented limit)
   assert.equal(router.search('search code', 5)[0]?.tool, 'search.tool'); // Latin still works
+});
+
+// Perf budget (P1-4): guard against an O(N^2)-style regression at scale.
+// Budgets are deliberately generous (CI machines vary) — they only catch a blow-up,
+// not micro-regressions. Real numbers are ~20ms build / ~2ms per search.
+test('1000-tool index builds and searches within a generous time budget', () => {
+  const tools = Array.from({ length: 1000 }, (_, i) => ({
+    name: `srv${i % 25}.tool_${i}`,
+    description: `performs operation ${i} on widgets, gadgets and records in service ${i % 25}`,
+  }));
+
+  const tBuild = performance.now();
+  const router = createRouter(tools);
+  const buildMs = performance.now() - tBuild;
+
+  const tSearch = performance.now();
+  for (let i = 0; i < 200; i++) router.search('operation on widgets and records', 8);
+  const avgSearchMs = (performance.now() - tSearch) / 200;
+
+  assert.ok(buildMs < 1500, `build took ${buildMs.toFixed(1)}ms (budget 1500)`);
+  assert.ok(avgSearchMs < 50, `avg search ${avgSearchMs.toFixed(2)}ms (budget 50)`);
 });
