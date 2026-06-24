@@ -126,6 +126,30 @@ export function resolveCall(index: FederatedIndex, toolName: string): { client: 
   return { client, bareName: toolName.slice(serverId.length + 1) };
 }
 
+/** An MCP tool-error result — the host sees a recoverable tool error, not a thrown protocol error. */
+function errorResult(message: string) {
+  return { content: [{ type: 'text' as const, text: `quartermaster: ${message}` }], isError: true };
+}
+
+/**
+ * Forward a chosen namespaced tool to its downstream client. Any failure (unknown
+ * tool, or the downstream throwing) is returned as an `isError` tool result
+ * rather than thrown, so one bad call never takes down the proxy session.
+ */
+export async function forwardCall(index: FederatedIndex, toolName: string, args: Record<string, unknown>) {
+  let target: { client: Client; bareName: string };
+  try {
+    target = resolveCall(index, toolName);
+  } catch (e) {
+    return errorResult((e as Error).message);
+  }
+  try {
+    return await target.client.callTool({ name: target.bareName, arguments: args });
+  } catch (e) {
+    return errorResult(`call to "${toolName}" failed: ${(e as Error).message}`);
+  }
+}
+
 /**
  * The FEDERATED MCP server: exposes `retrieve_tools` (discovery, with hydrated
  * schemas) AND `call_tool` (execution — forwards the chosen namespaced tool to
@@ -176,23 +200,22 @@ export function createServerFromIndex(index: FederatedIndex, opts: { k?: number 
     if (req.params.name === 'retrieve_tools') {
       const query = (args as Record<string, unknown>).query;
       if (typeof query !== 'string' || query.trim() === '') {
-        throw new Error('retrieve_tools: `query` (non-empty string) is required.');
+        return errorResult('retrieve_tools: `query` (non-empty string) is required.');
       }
       const kRaw = (args as Record<string, unknown>).k;
       const k = typeof kRaw === 'number' && kRaw > 0 ? Math.floor(kRaw) : defaultK;
       const result = retrieveTools(index.router, query, k, index.schemas);
-      return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+      return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }] };
     }
     if (req.params.name === 'call_tool') {
       const toolName = (args as Record<string, unknown>).name;
       if (typeof toolName !== 'string') {
-        throw new Error('call_tool: `name` (the namespaced server.tool string) is required.');
+        return errorResult('call_tool: `name` (the namespaced server.tool string) is required.');
       }
-      const { client, bareName } = resolveCall(index, toolName);
       const toolArgs = (args as Record<string, unknown>).arguments;
-      return client.callTool({ name: bareName, arguments: (toolArgs ?? {}) as Record<string, unknown> });
+      return forwardCall(index, toolName, (toolArgs ?? {}) as Record<string, unknown>);
     }
-    throw new Error(`unknown tool: ${req.params.name}`);
+    return errorResult(`unknown tool: ${req.params.name}`);
   });
 
   return server;

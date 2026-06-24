@@ -35,6 +35,10 @@ All notable changes to this project are documented here. Format based on
   so the host LLM knows when not to trust the result (nothing matched, or a
   near-tie). Uses a relative margin (BM25 scores are unbounded). Configurable via
   `marginThreshold` / `minTopScore`.
+- **Forwarding hardening (P2-4)** — `forwardCall` (and the federated server's
+  handlers) now return MCP `isError` tool results on any failure (unknown tool,
+  downstream throwing, bad args) instead of throwing a protocol error, so one bad
+  call never takes down the proxy session. +3 tests.
 - **Federated server + `call_tool` (P2-9, invocation model A)** —
   `createServerFromIndex(index)` exposes two static tools: `retrieve_tools`
   (discovery, hydrated schemas) and `call_tool(name, arguments)` (execution —
