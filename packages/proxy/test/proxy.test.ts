@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { buildStaticRouter, createServer, retrieveTools } from '../src/index.ts';
+// Import the built dist (the package as consumed): index re-exports across files
+// with NodeNext `.js` specifiers, which raw type-stripping of src can't resolve.
+// CI builds before testing; the loop's local flow does too.
+import { buildStaticRouter, createServer, retrieveTools } from '../dist/index.js';
 
 const CONFIG = {
   tools: [

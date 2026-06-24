@@ -15,6 +15,8 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { createRouter, type Router, type Tool } from '@quartermaster/core';
 
+export { loadConfig, parseConfig } from './config.js';
+
 export interface DownstreamServer {
   /** Display id, used to namespace tool names (e.g. `github`). */
   readonly id: string;

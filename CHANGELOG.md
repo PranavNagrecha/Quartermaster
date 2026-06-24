@@ -35,6 +35,10 @@ All notable changes to this project are documented here. Format based on
   so the host LLM knows when not to trust the result (nothing matched, or a
   near-tie). Uses a relative margin (BM25 scores are unbounded). Configurable via
   `marginThreshold` / `minTopScore`.
+- **Proxy config loader (P2-2)** — `loadConfig(path)` / `parseConfig(text)` read
+  and validate `quartermaster.json` (tools / servers / synonyms / k) with
+  zero extra deps and actionable error messages (which field, which index, what's
+  wrong). +9 tests.
 - **Proxy MCP server (P2-1)** — `quartermaster-mcp` now exposes a real
   `retrieve_tools` tool over MCP (low-level `Server`), returning a
   confidence-annotated shortlist *with descriptions* from a static config
