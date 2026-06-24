@@ -35,6 +35,12 @@ All notable changes to this project are documented here. Format based on
   so the host LLM knows when not to trust the result (nothing matched, or a
   near-tie). Uses a relative margin (BM25 scores are unbounded). Configurable via
   `marginThreshold` / `minTopScore`.
+- **Proxy MCP server (P2-1)** — `quartermaster-mcp` now exposes a real
+  `retrieve_tools` tool over MCP (low-level `Server`), returning a
+  confidence-annotated shortlist *with descriptions* from a static config
+  manifest via `@quartermaster/core`'s `route()`. `buildStaticRouter` fails loud
+  on an empty manifest. Real smoke tests added; the proxy `test` script no longer
+  swallows failures (`|| true` removed). Downstream federation + bin wiring follow.
 - **Rich candidates** — `search(query, k, { includeDescription: true })` echoes
   each tool's `description` into its candidate, so the host LLM (and the proxy)
   can choose/call from more than the name. Off by default.

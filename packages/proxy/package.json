@@ -9,7 +9,7 @@
   "files": ["dist", "bin", "README.md"],
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "node --test --experimental-strip-types test/*.test.ts || true",
+    "test": "node --test --experimental-strip-types test/*.test.ts",
     "lint": "tsc -p tsconfig.json --noEmit"
   },
   "keywords": ["mcp", "proxy", "gateway", "tool-router", "offline"],

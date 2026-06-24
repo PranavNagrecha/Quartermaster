@@ -1,16 +1,19 @@
 /**
- * quartermaster-mcp — a drop-in MCP proxy (SCAFFOLD).
+ * quartermaster-mcp — a drop-in MCP proxy.
  *
- * Sits in front of N downstream MCP servers. Instead of exposing every tool to
- * the client, it exposes ONE meta-tool — `retrieve_tools(query)` — backed by the
- * offline @quartermaster/core ranker. The client (or host LLM) calls it, gets a
- * ranked shortlist, then the matching tools are surfaced / called through.
+ * Exposes ONE meta-tool, `retrieve_tools`, over MCP. It returns a ranked,
+ * confidence-annotated shortlist (with descriptions) for a natural-language
+ * query, built by the offline @quartermaster/core router — so the client loads
+ * one tool instead of every downstream schema. It advises; the host LLM decides.
  *
- * This is the intended shape, not yet a finished server. The real wiring
- * (spawning downstream servers over stdio, aggregating their `tools/list`,
- * forwarding `tools/call`) is tracked in the issues — see CONTRIBUTING.md.
+ * P2-1: the manifest is supplied statically in the config. Downstream federation
+ * (spawning real MCP servers, aggregating `tools/list`, forwarding `tools/call`)
+ * lands in P2-3 / P2-4.
  */
-import { createRouter, type Tool } from '@quartermaster/core';
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { createRouter, type Router, type Tool } from '@quartermaster/core';
 
 export interface DownstreamServer {
   /** Display id, used to namespace tool names (e.g. `github`). */
@@ -21,44 +24,78 @@ export interface DownstreamServer {
 }
 
 export interface ProxyConfig {
-  readonly servers: readonly DownstreamServer[];
+  /** Static tool manifest (P2-1). Downstream `servers` federation lands in P2-3. */
+  readonly tools?: readonly Tool[];
+  readonly servers?: readonly DownstreamServer[];
   /** Optional query-expansion synonyms passed to the ranker. */
   readonly synonyms?: Readonly<Record<string, readonly string[]>>;
   /** Shortlist size returned by retrieve_tools. Default 8. */
   readonly k?: number;
 }
 
-/**
- * Aggregate every downstream server's tool manifest into one corpus and build
- * the offline router over it. (Stub: real impl connects to each server and
- * reads `tools/list`.)
- */
-export async function buildToolIndex(config: ProxyConfig): Promise<ReturnType<typeof createRouter>> {
-  const tools: Tool[] = [];
-  for (const server of config.servers) {
-    // TODO: connect over MCP stdio, call tools/list, map each into a Tool with
-    // a `${server.id}.${name}` namespaced name and `category: server.id`.
-    void server;
+/** Build the offline router from the config's static tool manifest. Fails LOUD on an empty manifest. */
+export function buildStaticRouter(config: ProxyConfig): Router {
+  const tools = config.tools ?? [];
+  if (tools.length === 0) {
+    throw new Error(
+      'quartermaster: no tools to index — provide config.tools (static manifest) or config.servers (P2-3 downstream).',
+    );
   }
   return createRouter(tools, { synonyms: config.synonyms });
 }
 
-/**
- * The single meta-tool the proxy exposes to the client. Returns a ranked
- * shortlist for the host LLM to choose from — it advises, it does not decide.
- */
-export function retrieveTools(
-  router: ReturnType<typeof createRouter>,
-  query: string,
-  k = 8,
-) {
-  return {
-    guidance:
-      'These are the most relevant tools for the query, ranked. Read them and ' +
-      'choose; call retrieve_tools again with a refined query if none fit.',
-    candidates: router.search(query, k),
-  };
+/** The `retrieve_tools` result: a confidence-annotated shortlist + guidance. Advises, does not decide. */
+export function retrieveTools(router: Router, query: string, k = 8) {
+  const { candidates, confidence, guidance } = router.route(query, k, { includeDescription: true });
+  return { confidence, guidance, candidates };
 }
 
-// TODO: export a `startProxy(config)` that wires the above into an
-// @modelcontextprotocol/sdk Server over stdio.
+/** Construct the MCP server exposing `retrieve_tools`. The transport is connected by `startServer` / the bin. */
+export function createServer(config: ProxyConfig): Server {
+  const router = buildStaticRouter(config);
+  const defaultK = config.k ?? 8;
+  const server = new Server({ name: 'quartermaster-mcp', version: '0.1.0' }, { capabilities: { tools: {} } });
+
+  server.setRequestHandler(ListToolsRequestSchema, async () => ({
+    tools: [
+      {
+        name: 'retrieve_tools',
+        description:
+          'Find the most relevant tools for a natural-language task. Returns a ranked, ' +
+          'confidence-annotated shortlist (with descriptions) — read it and call the tool you need, ' +
+          'instead of loading every tool up front.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            query: { type: 'string', description: 'What you are trying to do, in natural language.' },
+            k: { type: 'number', description: 'Max tools to return (default 8).' },
+          },
+          required: ['query'],
+        },
+      },
+    ],
+  }));
+
+  server.setRequestHandler(CallToolRequestSchema, async (req) => {
+    if (req.params.name !== 'retrieve_tools') {
+      throw new Error(`unknown tool: ${req.params.name}`);
+    }
+    const args = req.params.arguments ?? {};
+    const query = (args as Record<string, unknown>).query;
+    if (typeof query !== 'string' || query.trim() === '') {
+      throw new Error('retrieve_tools: `query` (non-empty string) is required.');
+    }
+    const kRaw = (args as Record<string, unknown>).k;
+    const k = typeof kRaw === 'number' && kRaw > 0 ? Math.floor(kRaw) : defaultK;
+    const result = retrieveTools(router, query, k);
+    return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+  });
+
+  return server;
+}
+
+/** Boot the proxy over stdio. Used by the bin (P2-5). */
+export async function startServer(config: ProxyConfig): Promise<void> {
+  const server = createServer(config);
+  await server.connect(new StdioServerTransport());
+}

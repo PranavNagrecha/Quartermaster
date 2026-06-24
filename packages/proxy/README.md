@@ -1,8 +1,10 @@
 # quartermaster-mcp
 
 A drop-in MCP proxy that federates N downstream MCP servers behind one offline
-`retrieve_tools` function. **Scaffold** — the ranker is real
-([`@quartermaster/core`](../core/)); the server wiring is in progress.
+`retrieve_tools` function. **Status:** the MCP server + `retrieve_tools` tool are
+real and tested over a **static** manifest (P2-1); downstream federation
+(spawning servers, aggregating `tools/list`, forwarding calls) is in progress
+(P2-3/P2-4). The ranker is [`@quartermaster/core`](../core/).
 
 ## Idea
 
@@ -18,21 +20,41 @@ The client loads a single tool instead of every downstream schema. On a query,
 `retrieve_tools` returns the top-K relevant tools (offline BM25, no model), and
 the host LLM picks from them.
 
-## Config (planned)
+## Config
+
+Today (P2-1) — a static manifest:
 
 ```json
 {
-  "servers": [
-    { "id": "github", "command": "npx", "args": ["-y", "@modelcontextprotocol/server-github"] },
-    { "id": "jira",   "command": "npx", "args": ["-y", "jira-mcp"] }
+  "tools": [
+    { "name": "github.create_issue", "description": "Open a new issue in a repository" },
+    { "name": "slack.post_message",  "description": "Send a message to a Slack channel" }
   ],
   "synonyms": { "bug": ["issue"] },
   "k": 8
 }
 ```
 
-```bash
-quartermaster-mcp --config ./quartermaster.json
+Planned (P2-3) — federate live downstream servers:
+
+```json
+{
+  "servers": [
+    { "id": "github", "command": "npx", "args": ["-y", "@modelcontextprotocol/server-github"] }
+  ]
+}
 ```
 
-See [src/index.ts](src/index.ts) for the intended shape and the TODOs.
+## API (programmatic)
+
+```ts
+import { createServer, retrieveTools, buildStaticRouter } from 'quartermaster-mcp';
+
+const server = createServer(config);              // MCP Server exposing retrieve_tools
+// await startServer(config)                       // boot over stdio (used by the bin, P2-5)
+
+const router = buildStaticRouter(config);
+retrieveTools(router, 'file a bug', 5);            // { confidence, guidance, candidates }
+```
+
+The bin (`quartermaster-mcp --config ./quartermaster.json`) is wired in P2-5.
