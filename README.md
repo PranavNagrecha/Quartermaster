@@ -82,9 +82,7 @@ can get competitive tool routing with **no embedding model at all**.
 
 ## Quick start (library)
 
-> **Alpha — not yet on npm.** Until the first release, build from source:
-> `pnpm install && pnpm -r build`, then import `packages/core/dist`. The `npm`
-> command below uses the reserved package name.
+> **`0.1.0` on npm** (alpha). Published as **`@pranavnpm/core`**.
 
 ```bash
 npm install @pranavnpm/core

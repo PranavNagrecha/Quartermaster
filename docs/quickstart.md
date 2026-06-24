@@ -1,14 +1,11 @@
 # Quickstart
 
-> **Alpha — not yet on npm.** The `npm`/`npx` commands below use the reserved
-> package names for the first release. **To try it today, run from source:**
-> `git clone … && cd quartermaster && pnpm install && pnpm -r build`. Then import
-> `packages/core/dist` or run the bin at `packages/proxy/bin/quartermaster-mcp.js`.
+> **`0.1.0` on npm** (alpha): `@pranavnpm/core` (library) and `quartermaster-mcp` (proxy).
 
 ## As a library
 
 ```bash
-npm install @pranavnpm/core   # once published; until then build from source (above)
+npm install @pranavnpm/core
 ```
 
 ```ts
@@ -58,9 +55,8 @@ Put `quartermaster-mcp` in front of N MCP servers; the client loads two tools
 ```
 
 ```bash
-# once published:
-quartermaster-mcp --config ./quartermaster.json
-# from source (while unpublished):
+npx quartermaster-mcp --config ./quartermaster.json
+# or, from a source checkout:
 node packages/proxy/bin/quartermaster-mcp.js --config ./quartermaster.json
 ```
 

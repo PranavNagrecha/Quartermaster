@@ -5,6 +5,16 @@ All notable changes to this project are documented here. Format based on
 
 ## [Unreleased]
 
+### Changed
+- **Docs reflect the published packages** — README, quickstart, and the Cursor
+  recipe now show the real `npm install @pranavnpm/core` / `npx quartermaster-mcp`
+  commands instead of the pre-release "not yet on npm, build from source" notes.
+
+## [0.1.0] - 2026-06-24
+
+First public alpha. Published to npm: **`@pranavnpm/core`** (library) and
+**`quartermaster-mcp`** (proxy).
+
 ### Added
 - `@pranavnpm/core` — offline, zero-dependency tool ranker (BM25 default,
   TF-IDF cosine alternative) with configurable synonym query-expansion. Extracted
