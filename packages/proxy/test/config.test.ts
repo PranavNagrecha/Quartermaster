@@ -52,6 +52,18 @@ test('rejects a non-positive k', () => {
   assert.throws(() => parseConfig(JSON.stringify({ tools: [{ name: 'a' }], k: 0 })), /"k" must be a positive number/);
 });
 
+test('parses per-tool overlays', () => {
+  const cfg = parseConfig(JSON.stringify({ tools: [{ name: 'a' }], overlays: { a: { keywords: 'x y' } } }));
+  assert.deepEqual(cfg.overlays, { a: { keywords: 'x y' } });
+});
+
+test('rejects malformed overlays', () => {
+  assert.throws(
+    () => parseConfig(JSON.stringify({ tools: [{ name: 'a' }], overlays: { a: { keywords: 5 } } })),
+    /overlays\["a"\] must be an object with a string/,
+  );
+});
+
 test('rejects malformed synonyms', () => {
   assert.throws(() => parseConfig(JSON.stringify({ tools: [{ name: 'a' }], synonyms: { bug: 'issue' } })), /synonyms\["bug"\] must be an array/);
 });

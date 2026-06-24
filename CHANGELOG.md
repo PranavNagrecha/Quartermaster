@@ -36,6 +36,10 @@ All notable changes to this project are documented here. Format based on
   so the host LLM knows when not to trust the result (nothing matched, or a
   near-tie). Uses a relative margin (BM25 scores are unbounded). Configurable via
   `marginThreshold` / `minTopScore`.
+- **Per-tool keyword overlays (P2-10)** — config `overlays: { "server.tool": { keywords } }`
+  injects extra keywords into a tool's index entry so operators can tune recall
+  (e.g. add "bug defect" to `create_issue`) without touching downstream servers.
+  `applyOverlays` exposed (pure); validated in `parseConfig`. +4 tests.
 - **Downstream `env` interpolation (P2-11)** — config `servers[].env` values may
   reference `${VAR}`, resolved from `process.env` at connect time (unset → fail
   fast with a clear error), merged over the safe default environment. Unblocks
