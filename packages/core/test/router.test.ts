@@ -80,3 +80,15 @@ test('explain is off by default — no matches field', () => {
   const router = createRouter(TOOLS);
   assert.equal(router.search('open a new issue', 2)[0]?.matches, undefined);
 });
+
+test('includeDescription echoes the tool description into candidates', () => {
+  const router = createRouter(TOOLS);
+  const [first] = router.search('open a new issue', 2, { includeDescription: true });
+  assert.equal(first?.tool, 'github.create_issue');
+  assert.equal(first?.description, 'Open a new issue in a repository');
+});
+
+test('description is off by default', () => {
+  const router = createRouter(TOOLS);
+  assert.equal(router.search('open a new issue', 2)[0]?.description, undefined);
+});

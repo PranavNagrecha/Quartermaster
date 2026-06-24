@@ -26,6 +26,9 @@ All notable changes to this project are documented here. Format based on
   + MRR for all four rankers across the heritage corpus and synthetic 50–1000-tool
   manifests, plus token-reduction (~95–99%) and the two-regime interpretation.
 
+- **Rich candidates** — `search(query, k, { includeDescription: true })` echoes
+  each tool's `description` into its candidate, so the host LLM (and the proxy)
+  can choose/call from more than the name. Off by default.
 - **Explain mode** — `search(query, k, { explain: true })` adds a `matches`
   per-term `{ term, contribution }[]` breakdown (sorted, summing to the score) to
   each candidate, for tuning. Off by default (no field added).
