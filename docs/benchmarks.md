@@ -23,13 +23,15 @@ hand-authored colloquial queries.
 | ranker | R@1 | R@3 | R@5 | R@8 | MRR |
 |---|---|---|---|---|---|
 | bm25 | 57.4% | 74.5% | 83.0% | 91.5% | 68.5% |
-| bm25+expansion | 61.7% | 76.6% | 78.7% | 83.0% | 69.8% |
-| tfidf | 55.3% | 76.6% | 85.1% | **93.6%** | 68.2% |
+| bm25+expansion | 61.7% | 74.5% | 83.0% | 89.4% | **70.6%** |
+| tfidf | 55.3% | 78.7% | 85.1% | **93.6%** | 68.8% |
 | substring | 29.8% | 48.9% | 51.1% | 61.7% | 40.7% |
 
-On **rich** real descriptions, plain BM25 is already strong (91.5% R@8). Synonym
-expansion helps R@1 (+4.3pts) but **hurts R@8** (83.0%) — unweighted expansion
-adds noise. TF-IDF edges out at R@8. Substring is far behind everywhere.
+On **rich** real descriptions, plain BM25 is already strong (91.5% R@8). With
+**weighted** expansion (P1-1, `expansionWeight=0.5`) the synonym variant now
+leads on R@1 (+4.3pts) and on MRR (70.6%, best here) and trails BM25 only
+marginally at R@8 (89.4% vs 91.5%) — the earlier unweighted regression (83.0%)
+is largely recovered. TF-IDF still edges out at R@8. Substring is far behind.
 
 ## Synthetic corpora — scaling behavior (vocab-gap queries)
 
@@ -79,7 +81,9 @@ The expansion result **flips with description richness**:
 - **Terse descriptions** (synthetic; most real MCP servers): expansion is a big,
   clear win — it bridges the vocabulary gap the lexical match can't.
 - **Rich descriptions** (heritage): plain BM25 already captures the vocabulary;
-  unweighted expansion adds noise and can lower recall@K.
+  *weighted* expansion (default `expansionWeight=0.5`) trails BM25 only marginally
+  at R@8 and leads on MRR. (Unweighted expansion noticeably lowered recall@8 —
+  this is why expansion weighting exists.)
 
 So the honest headline is **not** "beats hybrid embeddings" — it's "competitive,
 zero-dependency routing whose expansion earns its place as a *toggle*, tuned to

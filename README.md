@@ -22,8 +22,9 @@ instead of 200 — no embedding model, no network, no API key.
 > recall@8** on a real 171-tool manifest, beating a substring baseline
 > everywhere. Optional offline synonym expansion is a **large** win on
 > terse/vocabulary-poor manifests (the common case — **5–9× recall@1** at
-> 500–1000 tools) but can *hurt* recall on rich descriptions, so it ships
-> **opt-in and corpus-tuned**. We do **not** claim to beat hybrid embeddings —
+> 500–1000 tools) and, with weighting, only marginally trails BM25 at recall@8
+> on rich descriptions while leading on MRR — so it ships **opt-in and
+> corpus-tuned**. We do **not** claim to beat hybrid embeddings —
 > we claim competitive routing with **no model dependency at all**. Numbers:
 > [benchmarks](docs/benchmarks.md).
 

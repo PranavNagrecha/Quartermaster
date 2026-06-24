@@ -23,7 +23,7 @@ const shortlist = router.search('how do I file a bug?', 8);
 ### `createRouter(tools, config?) => { search }`
 
 - `tools: Tool[]` — `{ name, description?, keywords?, category? }`. Only `name` required.
-- `config: RouterConfig` — `ranker`, `synonyms`, `stopwords`, `nameWeight`, `k1`, `b`.
+- `config: RouterConfig` — `ranker`, `synonyms`, `stopwords`, `nameWeight`, `k1`, `b`, `expansionWeight`.
 - `search(query, k = 8): ToolCandidate[]` — `{ tool, score, category }[]`, highest score first.
 
 ### Why these defaults
@@ -32,6 +32,8 @@ const shortlist = router.search('how do I file a bug?', 8);
   retrieval and is what Anthropic's native Tool Search and mcpproxy-go also use.
 - The tool **name is weighted** (`nameWeight=2`) because the name encodes intent
   (`create_issue`) even when the prose description doesn't echo the query.
-- **Synonyms** are off by default. Supply a map to bridge domain vocabulary.
+- **Synonyms** are off by default. Supply a map to bridge domain vocabulary;
+  expanded terms carry `expansionWeight` (default `0.5`, `0` disables) so they
+  nudge ranking without washing out exact-term matches.
 
 See [how it works](../../docs/how-it-works.md).

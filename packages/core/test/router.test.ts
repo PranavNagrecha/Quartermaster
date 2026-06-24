@@ -39,3 +39,25 @@ test('tfidf ranker also resolves the relevant tool', () => {
   const top = router.search('search code in repositories', 4);
   assert.equal(top[0]?.tool, 'github.search_code');
 });
+
+// Weighted synonym expansion (P1-1). srv.aaa would win on the alphabetical
+// tie-break if synonyms were unweighted; weighting makes the EXACT-term match
+// (srv.zzz) win instead.
+const WEIGHT_TOOLS = [
+  { name: 'srv.aaa', description: 'beta' },
+  { name: 'srv.zzz', description: 'alpha' },
+];
+
+test('weighted expansion: exact-term match outranks a synonym-only match', () => {
+  const router = createRouter(WEIGHT_TOOLS, { synonyms: { alpha: ['beta'] } }); // default expansionWeight 0.5
+  const top = router.search('alpha', 2);
+  assert.equal(top[0]?.tool, 'srv.zzz'); // exact 'alpha' beats synonym 'beta' despite alpha-order
+  assert.ok(top.some((c) => c.tool === 'srv.aaa')); // synonym still surfaces it
+});
+
+test('expansionWeight 0 disables synonym expansion entirely', () => {
+  const router = createRouter(WEIGHT_TOOLS, { synonyms: { alpha: ['beta'] }, expansionWeight: 0 });
+  const top = router.search('alpha', 2).map((c) => c.tool);
+  assert.ok(top.includes('srv.zzz'));
+  assert.ok(!top.includes('srv.aaa')); // synonym ignored
+});

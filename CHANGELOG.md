@@ -28,6 +28,11 @@ All notable changes to this project are documented here. Format based on
 
 ### Changed
 
+- **Weighted synonym expansion** (`expansionWeight`, default `0.5`, `0` disables):
+  synonym-expanded query terms now contribute less than originals, so expansion
+  nudges ranking without washing out exact-term matches. Recovers the heritage
+  recall@8 regression (83.0% → 89.4%, best MRR) while preserving the large
+  terse-corpus win. Benchmarks doc updated to the new numbers.
 - README status now carries the **P0 benchmark verdict (GO)**: zero-dependency
   BM25 is a strong router (91.5% recall@8 on a real 171-tool manifest); synonym
   expansion is an opt-in, corpus-tuned win (big on terse manifests, can hurt on
