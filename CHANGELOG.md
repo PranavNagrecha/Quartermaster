@@ -35,6 +35,12 @@ All notable changes to this project are documented here. Format based on
   so the host LLM knows when not to trust the result (nothing matched, or a
   near-tie). Uses a relative margin (BM25 scores are unbounded). Configurable via
   `marginThreshold` / `minTopScore`.
+- **End-to-end integration test (P2-6)** — a real fake downstream MCP server
+  (`test/fixtures/echo-mcp-server.mjs`) is spawned over stdio and federated via
+  `buildToolIndex`; tests assert namespaced aggregation + schema capture, that the
+  router ranks the right downstream tool, and that `forwardCall` actually executes
+  it and returns its content. **Completes the proxy MVP** — `quartermaster-mcp` is
+  now runnable end-to-end. +4 tests (real spawn).
 - **CLI / bin wiring (P2-5)** — `quartermaster-mcp --config <path>` now actually
   boots the proxy over stdio (federated mode when the config has `servers`, static
   when it has `tools`); the scaffold error stub is gone. `parseCliArgs`,
