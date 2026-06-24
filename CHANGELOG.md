@@ -105,6 +105,10 @@ All notable changes to this project are documented here. Format based on
 - **Rich candidates** — `search(query, k, { includeDescription: true })` echoes
   each tool's `description` into its candidate, so the host LLM (and the proxy)
   can choose/call from more than the name. Off by default.
+- **Core edge-case tests (P1-3)** — empty manifest, single tool, duplicate names,
+  all-stopword query, very long descriptions, and the documented CJK/non-Latin
+  tokenizer limitation (queries run safely, just don't match). +6 tests; core
+  README now lists the Latin-only + O(N)-scan limits.
 - **Explain mode** — `search(query, k, { explain: true })` adds a `matches`
   per-term `{ term, contribution }[]` breakdown (sorted, summing to the score) to
   each candidate, for tuning. Off by default (no field added).

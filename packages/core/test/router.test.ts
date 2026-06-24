@@ -145,3 +145,40 @@ test('explicit expansionWeight overrides the auto-default', () => {
   const tools = createRouter(rich, { synonyms: { alpha: ['beta'] }, expansionWeight: 0.5 }).search('alpha', 2).map((c) => c.tool);
   assert.ok(tools.includes('b.two')); // explicit weight wins over auto-off
 });
+
+// Edge cases (P1-3).
+test('empty manifest: search returns nothing and route reports none', () => {
+  const router = createRouter([]);
+  assert.deepEqual(router.search('anything at all'), []);
+  assert.equal(router.route('anything at all').confidence, 'none');
+});
+
+test('single-tool manifest resolves that tool', () => {
+  const router = createRouter([{ name: 'only.tool', description: 'send an email' }]);
+  assert.equal(router.search('send an email', 5)[0]?.tool, 'only.tool');
+});
+
+test('duplicate tool names do not crash (both indexed)', () => {
+  const router = createRouter([
+    { name: 'dup.tool', description: 'first one about invoices' },
+    { name: 'dup.tool', description: 'second one about invoices' },
+  ]);
+  const hits = router.search('invoices', 5).filter((c) => c.tool === 'dup.tool');
+  assert.ok(hits.length >= 1);
+});
+
+test('all-stopword query returns nothing', () => {
+  assert.deepEqual(createRouter(TOOLS).search('the a of to on'), []);
+});
+
+test('a very long description still indexes and matches', () => {
+  const long = `creates a customer invoice ${'lorem ipsum '.repeat(2000)}`;
+  const router = createRouter([{ name: 'billing.invoice', description: long }]);
+  assert.equal(router.search('create a customer invoice', 5)[0]?.tool, 'billing.invoice');
+});
+
+test('CJK is a known tokenizer limitation: non-Latin queries do not match, but do not crash', () => {
+  const router = createRouter([{ name: 'search.tool', description: '搜索代码 search code' }]);
+  assert.deepEqual(router.search('搜索代码'), []); // CJK stripped → no tokens (documented limit)
+  assert.equal(router.search('search code', 5)[0]?.tool, 'search.tool'); // Latin still works
+});

@@ -44,4 +44,13 @@ const shortlist = router.search('how do I file a bug?', 8);
   when average description length is rich (>200 chars, where expansion adds noise),
   `0.5` when terse. Set it explicitly to override.
 
+### Limitations
+
+- **Tokenizer is Latin/ASCII-only.** It splits on non-`[a-z0-9]` characters, so
+  CJK and other non-Latin scripts produce no tokens and won't match (queries
+  still run safely, just empty). Tool *names* are typically ASCII, so routing for
+  ASCII-named tools with non-Latin descriptions still works via the name.
+- **O(N) scan per query** — fine to ~1–2k tools (see the perf note in
+  [benchmarks](../../docs/benchmarks.md)); not built for tens of thousands.
+
 See [how it works](../../docs/how-it-works.md).
