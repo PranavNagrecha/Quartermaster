@@ -36,3 +36,18 @@ test('retrieveTools reports none when nothing matches', () => {
 test('createServer builds without throwing for a valid config', () => {
   assert.doesNotThrow(() => createServer(CONFIG));
 });
+
+test('retrieveTools hydrates candidates with inputSchema when a schemas map is given', () => {
+  const router = buildStaticRouter(CONFIG);
+  const schema = { type: 'object', properties: { title: { type: 'string' } }, required: ['title'] };
+  const schemas = new Map([['github.create_issue', schema]]);
+  const top = retrieveTools(router, 'file a bug', 5, schemas).candidates[0];
+  assert.equal(top?.tool, 'github.create_issue');
+  assert.deepEqual((top as { inputSchema?: unknown }).inputSchema, schema);
+});
+
+test('retrieveTools omits inputSchema when no schemas map is given', () => {
+  const router = buildStaticRouter(CONFIG);
+  const top = retrieveTools(router, 'file a bug', 5).candidates[0];
+  assert.equal((top as { inputSchema?: unknown }).inputSchema, undefined);
+});

@@ -35,6 +35,11 @@ All notable changes to this project are documented here. Format based on
   so the host LLM knows when not to trust the result (nothing matched, or a
   near-tie). Uses a relative margin (BM25 scores are unbounded). Configurable via
   `marginThreshold` / `minTopScore`.
+- **Schema hydration (P2-8)** — `retrieveTools(..., schemas)` now hydrates each
+  shortlisted candidate with its full `inputSchema`, and `buildToolIndex` captures
+  a namespaced-name → inputSchema map from downstream `tools/list`. The host LLM
+  gets the full tool definition (name + description + schema) for just the
+  shortlist — the token win without losing callability. +2 tests.
 - **Downstream federation (P2-3)** — `buildToolIndex(config)` spawns each
   configured downstream MCP server over stdio, reads its `tools/list`, and
   aggregates every tool (namespaced `${serverId}.${name}`) into one router, with
