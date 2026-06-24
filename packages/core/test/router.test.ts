@@ -61,3 +61,22 @@ test('expansionWeight 0 disables synonym expansion entirely', () => {
   assert.ok(top.includes('srv.zzz'));
   assert.ok(!top.includes('srv.aaa')); // synonym ignored
 });
+
+test('explain mode returns per-term contributions, sorted, summing to the score', () => {
+  const router = createRouter(TOOLS);
+  const [first] = router.search('open a new issue on the repo', 2, { explain: true });
+  assert.ok(first?.matches && first.matches.length > 0);
+  for (const m of first.matches) {
+    assert.equal(typeof m.term, 'string');
+    assert.equal(typeof m.contribution, 'number');
+  }
+  const cs = first.matches.map((m) => m.contribution);
+  assert.deepEqual(cs, [...cs].sort((a, b) => b - a)); // sorted desc
+  const sum = cs.reduce((a, c) => a + c, 0);
+  assert.ok(Math.abs(sum - first.score) < 0.01); // contributions ≈ score (BM25)
+});
+
+test('explain is off by default — no matches field', () => {
+  const router = createRouter(TOOLS);
+  assert.equal(router.search('open a new issue', 2)[0]?.matches, undefined);
+});

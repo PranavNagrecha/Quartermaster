@@ -36,6 +36,12 @@ export interface Tool {
   readonly category?: string;
 }
 
+/** One query-term's contribution to a candidate's score (explain mode). */
+export interface TermMatch {
+  readonly term: string;
+  readonly contribution: number;
+}
+
 /** One meaning-ranked candidate for the host LLM to choose from. */
 export interface ToolCandidate {
   /** The tool's `name`. */
@@ -44,6 +50,8 @@ export interface ToolCandidate {
   readonly score: number;
   /** The tool's `category`, or `null`. */
   readonly category: string | null;
+  /** Per-term score breakdown (desc by contribution) — present only when search is called with `{ explain: true }`. */
+  readonly matches?: readonly TermMatch[];
 }
 
 export interface RouterConfig {
@@ -185,25 +193,35 @@ export const createRouter = (tools: readonly Tool[], config: RouterConfig = {}) 
     }
   }
 
-  const search = (query: string, k = 8): ToolCandidate[] => {
+  const search = (query: string, k = 8, opts: { explain?: boolean } = {}): ToolCandidate[] => {
+    const explain = opts.explain ?? false;
     const qw = expandWeighted(tokenize(query, stopwords), synonyms, expansionWeight);
     if (qw.size === 0) return [];
 
     const scored: ToolCandidate[] = [];
+    const r3 = (x: number): number => Math.round(x * 1000) / 1000;
+    const push = (name: string, category: string | null, score: number, matches?: TermMatch[]): void => {
+      if (score <= 0) return;
+      scored.push(
+        matches
+          ? { tool: name, score: r3(score), category, matches: matches.sort((a, b) => b.contribution - a.contribution) }
+          : { tool: name, score: r3(score), category },
+      );
+    };
 
     if (ranker === 'bm25') {
       for (const rec of records) {
         const dl = rec.tokens.length;
         let score = 0;
+        const matches = explain ? ([] as TermMatch[]) : undefined;
         for (const [term, weight] of qw) {
           const f = rec.tf.get(term);
           if (f === undefined) continue;
-          const idf = idfBm25(term);
-          score += weight * idf * ((f * (k1 + 1)) / (f + k1 * (1 - b + b * (dl / (avgdl || 1)))));
+          const c = weight * idfBm25(term) * ((f * (k1 + 1)) / (f + k1 * (1 - b + b * (dl / (avgdl || 1)))));
+          score += c;
+          if (matches) matches.push({ term, contribution: r3(c) });
         }
-        if (score > 0) {
-          scored.push({ tool: rec.name, score: Math.round(score * 1000) / 1000, category: rec.category });
-        }
+        push(rec.name, rec.category, score, matches);
       }
     } else {
       const qvec = new Map<string, number>();
@@ -218,14 +236,14 @@ export const createRouter = (tools: readonly Tool[], config: RouterConfig = {}) 
         const vec = rec.tfidf;
         if (vec === undefined) continue;
         let dot = 0;
-        if (qvec.size <= vec.size) {
-          for (const [term, w] of qvec) { const o = vec.get(term); if (o !== undefined) dot += w * o; }
-        } else {
-          for (const [term, w] of vec) { const o = qvec.get(term); if (o !== undefined) dot += w * o; }
+        const matches = explain ? ([] as TermMatch[]) : undefined;
+        for (const [term, w] of qvec) {
+          const o = vec.get(term);
+          if (o === undefined) continue;
+          dot += w * o;
+          if (matches) matches.push({ term, contribution: r3((w * o) / qnorm) });
         }
-        if (dot > 0) {
-          scored.push({ tool: rec.name, score: Math.round((dot / qnorm) * 1000) / 1000, category: rec.category });
-        }
+        push(rec.name, rec.category, dot / qnorm, matches);
       }
     }
 
