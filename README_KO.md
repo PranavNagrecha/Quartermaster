@@ -44,15 +44,25 @@ Quartermaster는 결정하지 않습니다. 순위가 매겨진 후보 목록을
 
 ## 빠른 시작
 
-```bash
-npm install @pranavnpm/core
+Quartermaster는 단일 패키지 `quartermaster-mcp` 하나입니다. 여러 MCP 서버 앞에
+두면, 클라이언트는 모든 다운스트림 스키마 대신 `retrieve_tools` + `call_tool`
+두 개만 로드합니다. `quartermaster.json`을 가리키세요:
+
+```json
+{
+  "servers": [
+    { "id": "github", "command": "npx", "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": { "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}" } }
+  ]
+}
 ```
 
-```ts
-import { createRouter } from '@pranavnpm/core';
-const router = createRouter(tools);
-router.search('버그를 등록하고 싶어요', 3);
+```bash
+npx quartermaster-mcp --config ./quartermaster.json
 ```
+
+순위 랭커(BM25 + 오프라인 확장)는 프록시에 **번들로 포함**되어 별도로 설치할
+필요가 없습니다. 자세한 내용은 [Cursor 레시피](docs/recipes/cursor.md)를 참고하세요.
 
 ## 라이선스
 

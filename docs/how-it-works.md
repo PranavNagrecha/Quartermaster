@@ -43,7 +43,7 @@ The "too many MCP tools" problem is well-trodden. Honest comparison:
 | tool-gating-mcp | proxy | embeddings (MiniLM) | ✅ | **Yes** |
 | mcp-gateway-registry | enterprise gateway | embeddings + RRF | ✅ | **Yes** |
 | MCPJungle | gateway | rule-based groups | ✅ | No |
-| **Quartermaster** | **library + proxy** | **BM25 (+ offline expansion)** | **✅** | **No** |
+| **Quartermaster** | **proxy (TS, self-contained)** | **BM25 (+ offline expansion)** | **✅** | **No** |
 
 What we lean on: **zero embedding model**, **host-agnostic**, **advises-not-decides**,
 **offline/private**. What we do *not* claim: best-in-class accuracy at very large

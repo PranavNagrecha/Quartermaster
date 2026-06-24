@@ -1,5 +1,5 @@
 /**
- * @pranavnpm/core — an offline, zero-dependency tool ranker.
+ * @quartermaster/core — an offline, zero-dependency tool ranker.
  *
  * Turns "N tools" into a meaning-ranked SHORTLIST of ~K candidates for a
  * natural-language query, which the host LLM (already in the loop, free) then

@@ -4,11 +4,13 @@ Thanks for your interest! Quartermaster is small on purpose.
 
 ## The one rule
 
-**`@pranavnpm/core` stays zero-dependency and has no embedding model.** That
-constraint *is* the product. Accuracy improvements must come from better lexical
-ranking, query expansion, or light offline techniques — not by adding a model.
-If you want an embedding-backed ranker, that belongs in a separate optional
-package, never in `core`.
+**The ranker (`@quartermaster/core`) stays zero-dependency and has no embedding
+model.** That constraint *is* the product — and it's why the published
+`quartermaster-mcp` can bundle the ranker and ship with only the MCP SDK as a
+runtime dependency. Accuracy improvements must come from better lexical ranking,
+query expansion, or light offline techniques — not by adding a model. If you want
+an embedding-backed ranker, that belongs in a separate optional package, never in
+`core`.
 
 ## Setup
 
@@ -28,9 +30,10 @@ pnpm -r test
 ## Where things are
 
 - `packages/core` — the ranker (the heart): BM25/TF-IDF, weighted + corpus-aware
-  expansion, `route()`.
-- `packages/proxy` — the MCP proxy server: federation, `retrieve_tools` +
-  `call_tool` + `list_servers`, config loader, env interpolation.
+  expansion, `route()`. Internal/private; **bundled into the proxy** at build time.
+- `packages/proxy` — the published package `quartermaster-mcp`: the MCP proxy
+  server (federation, `retrieve_tools` + `call_tool` + `list_servers`, config
+  loader, env interpolation). Built with esbuild, which inlines `core`.
 - `bench` — recall@K harness + fixtures (synthetic, heritage, blind real-MCP).
 - `docs` — quickstart, how-it-works, choosing, benchmarks, recipes.
 

@@ -6,7 +6,7 @@
  */
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport, getDefaultEnvironment } from '@modelcontextprotocol/sdk/client/stdio.js';
-import { createRouter, type Router, type Tool } from '@pranavnpm/core';
+import { createRouter, type Router, type Tool } from '@quartermaster/core';
 import type { DownstreamServer, ProxyConfig } from './index.js';
 
 /**

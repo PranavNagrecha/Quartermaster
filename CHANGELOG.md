@@ -5,10 +5,24 @@ All notable changes to this project are documented here. Format based on
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-06-24
+
+First stable public release — shipped as a **single npm package**.
+
+### Packaging
+- **One package, self-contained.** Quartermaster now publishes only
+  **`quartermaster-mcp`**. The BM25/TF-IDF ranker (`@quartermaster/core`, formerly
+  the separately-published `@pranavnpm/core`) is now an internal, private workspace
+  package **bundled into the proxy** at build time (esbuild). Installing the proxy
+  pulls one package whose only runtime dependency is the MCP SDK — no second
+  package, no embedding model, no network. *(0.1.0 was briefly published as two
+  packages — `@pranavnpm/core` + `quartermaster-mcp` — then unpublished in favor
+  of this single-package layout.)*
+
 ### Added
-- `@pranavnpm/core` — offline, zero-dependency tool ranker (BM25 default,
-  TF-IDF cosine alternative) with configurable synonym query-expansion. Extracted
-  and generalized from sf-intelligence's semantic funnel.
+- The ranker (`@quartermaster/core`, internal/bundled) — offline, zero-dependency
+  tool ranker (BM25 default, TF-IDF cosine alternative) with configurable synonym
+  query-expansion. Extracted and generalized from sf-intelligence's semantic funnel.
 - `quartermaster-mcp` — drop-in MCP proxy: federates N downstream MCP servers
   behind `retrieve_tools` (ranked, schema-hydrated shortlist) + `call_tool`
   (forwards to the right downstream); runnable via `--config`.
@@ -91,8 +105,8 @@ All notable changes to this project are documented here. Format based on
   gets the full tool definition (name + description + schema) for just the
   shortlist — the token win without losing callability. +2 tests.
 - **Decision doc (P3-5)** — [`docs/choosing.md`](docs/choosing.md): when to use the
-  `@pranavnpm/core` library vs the `quartermaster-mcp` proxy vs Anthropic's
-  native Tool Search, with a comparison table. Linked from the README nav.
+  `quartermaster-mcp` proxy vs Anthropic's native Tool Search (vs rolling your own
+  in-process ranking), with a comparison table. Linked from the README nav.
 - **Cursor host recipe (P3-3)** — [`docs/recipes/cursor.md`](docs/recipes/cursor.md)
   + a committed example proxy config (`examples/cursor/quartermaster.json`): a
   copy-paste `~/.cursor/mcp.json` that runs `quartermaster-mcp` federating
@@ -126,7 +140,7 @@ All notable changes to this project are documented here. Format based on
 - **Proxy MCP server (P2-1)** — `quartermaster-mcp` now exposes a real
   `retrieve_tools` tool over MCP (low-level `Server`), returning a
   confidence-annotated shortlist *with descriptions* from a static config
-  manifest via `@pranavnpm/core`'s `route()`. `buildStaticRouter` fails loud
+  manifest via the bundled ranker's `route()`. `buildStaticRouter` fails loud
   on an empty manifest. Real smoke tests added; the proxy `test` script no longer
   swallows failures (`|| true` removed). Downstream federation + bin wiring follow.
 - **Rich candidates** — `search(query, k, { includeDescription: true })` echoes
@@ -146,15 +160,10 @@ All notable changes to this project are documented here. Format based on
 
 ### Changed
 
-- **Core package renamed `@quartermaster/core` → `@pranavnpm/core`** for the
-  initial npm release (the `@quartermaster` org doesn't exist; published under the
-  author's username scope). The proxy and all imports/docs updated; library API unchanged.
 - **Docs truth pass** — fixed stale docs that still called the proxy a "scaffold"
   and listed already-done "good first issues": `docs/quickstart.md` (real proxy
   section), `CONTRIBUTING.md` (current layout + real open issues), `examples/README.md`
-  (lists the example configs that actually exist). Added explicit "alpha — not yet
-  on npm, build from source" notes to the README, quickstart, and Cursor recipe
-  (so `npm`/`npx` instructions don't mislead while the packages are unpublished).
+  (lists the example configs that actually exist).
 - **Docs sync (P2-17)** — root README, the proxy package README, and the
   `index.ts` header no longer call the proxy "scaffolded" (it's built + runnable):
   real proxy quick-start (config + `quartermaster-mcp --config`) and a `route()` /

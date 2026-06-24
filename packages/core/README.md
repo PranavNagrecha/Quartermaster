@@ -1,14 +1,16 @@
-# @pranavnpm/core
+# @quartermaster/core
 
 The offline, zero-dependency ranker behind [Quartermaster](../../README.md).
 No embedding model, no network, no runtime dependencies.
 
-```bash
-npm install @pranavnpm/core
-```
+> **Internal package — not published to npm.** It is **bundled into
+> [`quartermaster-mcp`](../proxy/)** at build time, so installing the proxy is all
+> you need. This is a workspace package used by the proxy, the benchmarks, and the
+> tests. (Want it standalone? It's ~a few hundred lines of dependency-free
+> TypeScript — copy or vendor `src/index.ts`.)
 
 ```ts
-import { createRouter } from '@pranavnpm/core';
+import { createRouter } from '@quartermaster/core';
 
 const router = createRouter(tools, {
   ranker: 'bm25',          // 'bm25' (default) | 'tfidf'
