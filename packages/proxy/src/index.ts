@@ -16,11 +16,11 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprot
 import { createRouter, type Router, type Tool } from '@quartermaster/core';
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { loadConfig, parseConfig } from './config.js';
-import { buildToolIndex, namespaceTools } from './downstream.js';
+import { buildToolIndex, interpolateEnv, namespaceTools } from './downstream.js';
 import type { FederatedIndex } from './downstream.js';
 
 export { loadConfig, parseConfig };
-export { buildToolIndex, namespaceTools };
+export { buildToolIndex, namespaceTools, interpolateEnv };
 export type { FederatedIndex } from './downstream.js';
 
 export interface DownstreamServer {
@@ -29,6 +29,8 @@ export interface DownstreamServer {
   /** Command to launch the downstream MCP server (stdio transport). */
   readonly command: string;
   readonly args?: readonly string[];
+  /** Environment for the child process. Values may reference `${VAR}`, resolved from process.env at connect time. */
+  readonly env?: Readonly<Record<string, string>>;
 }
 
 export interface ProxyConfig {

@@ -1,6 +1,15 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { buildToolIndex, namespaceTools } from '../dist/index.js'; // built dist — see proxy.test.ts note
+import { buildToolIndex, interpolateEnv, namespaceTools } from '../dist/index.js'; // built dist — see proxy.test.ts note
+
+test('interpolateEnv resolves ${VAR} from the source env', () => {
+  const out = interpolateEnv({ TOKEN: '${GH}', LITERAL: 'plain' }, { GH: 'secret123' });
+  assert.deepEqual(out, { TOKEN: 'secret123', LITERAL: 'plain' });
+});
+
+test('interpolateEnv throws a clear error when a referenced var is unset', () => {
+  assert.throws(() => interpolateEnv({ TOKEN: '${MISSING}' }, {}), /env var "MISSING".*not set/);
+});
 
 test('namespaceTools prefixes names with the server id and tags category', () => {
   const out = namespaceTools('github', [

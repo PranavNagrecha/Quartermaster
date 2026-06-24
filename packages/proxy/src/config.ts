@@ -46,7 +46,15 @@ function validateServers(v: unknown, src: string): DownstreamServer[] {
     if (s.args !== undefined && (!Array.isArray(s.args) || s.args.some((a) => typeof a !== 'string'))) {
       throw new Error(`quartermaster: ${src} servers[${i}] ("${s.id}").args must be an array of strings.`);
     }
-    return { id: s.id, command: s.command, args: s.args as string[] | undefined };
+    if (s.env !== undefined && (!isObject(s.env) || Object.values(s.env).some((val) => typeof val !== 'string'))) {
+      throw new Error(`quartermaster: ${src} servers[${i}] ("${s.id}").env must be an object of string -> string.`);
+    }
+    return {
+      id: s.id,
+      command: s.command,
+      args: s.args as string[] | undefined,
+      env: s.env as Record<string, string> | undefined,
+    };
   });
 }
 
