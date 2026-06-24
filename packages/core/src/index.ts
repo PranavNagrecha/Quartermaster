@@ -56,6 +56,16 @@ export interface ToolCandidate {
   readonly matches?: readonly TermMatch[];
 }
 
+/** A confidence-annotated shortlist for the host LLM — what `route()` returns. */
+export interface RouteResult {
+  /** The ranked shortlist (same as `search`). */
+  readonly candidates: ToolCandidate[];
+  /** `none` = nothing relevant matched; `low` = top candidates are near-tied (ambiguous); `high` = a clear winner. */
+  readonly confidence: 'none' | 'low' | 'high';
+  /** A short instruction for the host LLM, tuned to the confidence. */
+  readonly guidance: string;
+}
+
 export interface RouterConfig {
   /** `'bm25'` (default, Okapi BM25) or `'tfidf'` (heritage cosine). */
   readonly ranker?: 'bm25' | 'tfidf';
@@ -71,6 +81,10 @@ export interface RouterConfig {
   readonly b?: number;
   /** Weight of synonym-expanded query terms relative to originals (1.0). Default 0.5; `0` disables expansion. */
   readonly expansionWeight?: number;
+  /** `route()` flags `low` confidence when `(top−second)/top` is below this. Default 0.15. (Relative, since BM25 scores are unbounded.) */
+  readonly marginThreshold?: number;
+  /** `route()` flags `none` when the top score is below this absolute floor. Default 0 (disabled). */
+  readonly minTopScore?: number;
 }
 
 /** Filler words that carry no routing signal. Small on purpose so domain terms survive. */
@@ -157,6 +171,8 @@ export const createRouter = (tools: readonly Tool[], config: RouterConfig = {}) 
   const k1 = config.k1 ?? 1.5;
   const b = config.b ?? 0.75;
   const expansionWeight = config.expansionWeight ?? 0.5;
+  const marginThreshold = config.marginThreshold ?? 0.15;
+  const minTopScore = config.minTopScore ?? 0;
 
   const records: DocRecord[] = [];
   const df = new Map<string, number>();
@@ -258,7 +274,44 @@ export const createRouter = (tools: readonly Tool[], config: RouterConfig = {}) 
     return scored.slice(0, k);
   };
 
-  return { search };
+  /**
+   * `search` + a confidence verdict, so the host LLM knows when NOT to trust the
+   * shortlist. `none` when nothing matched (or the top is below `minTopScore`);
+   * `low` when the top two are within `marginThreshold` (ambiguous / near-tied);
+   * `high` otherwise. The `guidance` string is meant to be handed straight to
+   * the model.
+   */
+  const route = (
+    query: string,
+    k = 8,
+    opts: { includeDescription?: boolean } = {},
+  ): RouteResult => {
+    const candidates = search(query, k, { includeDescription: opts.includeDescription });
+    const top = candidates[0];
+    if (top === undefined || top.score < minTopScore) {
+      return {
+        candidates: [],
+        confidence: 'none',
+        guidance: 'No tools look relevant to this request. Rephrase it, broaden the synonyms map, or tell the user the capability may not exist.',
+      };
+    }
+    const second = candidates[1];
+    const margin = second ? (top.score - second.score) / top.score : 1;
+    if (margin < marginThreshold) {
+      return {
+        candidates,
+        confidence: 'low',
+        guidance: 'The top candidates are close, so the request may be ambiguous. Read the top few, pick deliberately, or ask the user to clarify.',
+      };
+    }
+    return {
+      candidates,
+      confidence: 'high',
+      guidance: 'These are the most relevant tools, ranked. Read them and choose; call again with a refined query if none fit.',
+    };
+  };
+
+  return { search, route };
 };
 
 export type Router = ReturnType<typeof createRouter>;

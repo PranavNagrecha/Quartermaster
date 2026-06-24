@@ -26,6 +26,11 @@ All notable changes to this project are documented here. Format based on
   + MRR for all four rankers across the heritage corpus and synthetic 50–1000-tool
   manifests, plus token-reduction (~95–99%) and the two-regime interpretation.
 
+- **`route()` low-confidence signal** — `router.route(query, k)` returns the
+  shortlist plus `confidence` (`none` / `low` / `high`) and a `guidance` string,
+  so the host LLM knows when not to trust the result (nothing matched, or a
+  near-tie). Uses a relative margin (BM25 scores are unbounded). Configurable via
+  `marginThreshold` / `minTopScore`.
 - **Rich candidates** — `search(query, k, { includeDescription: true })` echoes
   each tool's `description` into its candidate, so the host LLM (and the proxy)
   can choose/call from more than the name. Off by default.
