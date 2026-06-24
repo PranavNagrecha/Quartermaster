@@ -56,6 +56,11 @@ All notable changes to this project are documented here. Format based on
 - **Clean shutdown (P2-7)** — `closeIndex(index)` closes every downstream client
   (terminating their child processes), and the federated bin now closes them on
   SIGINT/SIGTERM — no leaked subprocesses. +2 tests.
+- **Server protocol round-trip test** — a real MCP `Client` now drives the
+  federated server *through the protocol* (over an in-memory transport linked to
+  the real spawned downstream): `tools/list` returns the three meta-tools, and
+  `retrieve_tools` (hydrated), `call_tool` (forwarded), `list_servers`, and the
+  `isError` path all verified over the wire — not via helper calls. +5 tests.
 - **End-to-end integration test (P2-6)** — a real fake downstream MCP server
   (`test/fixtures/echo-mcp-server.mjs`) is spawned over stdio and federated via
   `buildToolIndex`; tests assert namespaced aggregation + schema capture, that the
