@@ -107,6 +107,16 @@ roughly uniform descriptions, the tool-description payload shrinks by `1 − K/N
 (Heritage descriptions average ~930 bytes each; ~159 KB of tool text all-in vs
 ~7.5 KB for a top-8 shortlist.)
 
+## Performance
+
+The ranker is an in-memory **O(N) scan per query** (N = tool count). The index is
+built once; each `search` does a sparse dot product against the query's terms.
+This is fine to roughly **1–2k tools** — the regime Quartermaster targets — and is
+not built for tens of thousands. A CI test (`packages/core`) enforces a generous
+budget: a **1000-tool** index builds and serves 200 searches well under budget
+(real numbers: ~20 ms build, ~2 ms per search) so an accidental O(N²) regression
+fails the build.
+
 ## Reading the two regimes
 
 The expansion result **flips with description richness**:

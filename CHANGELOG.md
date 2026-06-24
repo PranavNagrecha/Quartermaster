@@ -105,6 +105,10 @@ All notable changes to this project are documented here. Format based on
 - **Rich candidates** — `search(query, k, { includeDescription: true })` echoes
   each tool's `description` into its candidate, so the host LLM (and the proxy)
   can choose/call from more than the name. Off by default.
+- **Perf budget test (P1-4)** — a CI test asserts a 1000-tool index builds +
+  serves 200 searches within a generous time budget (real: ~20 ms build / ~2 ms
+  per search), so an accidental O(N²) regression fails the build. `docs/benchmarks.md`
+  gains a Performance section documenting the O(N)-scan design + ~1–2k tool sweet spot.
 - **Core edge-case tests (P1-3)** — empty manifest, single tool, duplicate names,
   all-stopword query, very long descriptions, and the documented CJK/non-Latin
   tokenizer limitation (queries run safely, just don't match). +6 tests; core
