@@ -69,6 +69,11 @@ All notable changes to this project are documented here. Format based on
   a namespaced-name → inputSchema map from downstream `tools/list`. The host LLM
   gets the full tool definition (name + description + schema) for just the
   shortlist — the token win without losing callability. +2 tests.
+- **Blind real-MCP corpus (P1-15)** — `bench/cases/real-mcp-blind.json`: tool
+  surfaces from real public MCP servers (filesystem/github/git/fetch) + 30
+  user-intent queries (not from synonym tables), scored BM25-only. Honest
+  external-validity floor — ~37% R@1 / ~73% R@8 untuned — published in
+  `docs/benchmarks.md` with the warts (substring edges R@1 on short descriptions).
 - **Downstream federation (P2-3)** — `buildToolIndex(config)` spawns each
   configured downstream MCP server over stdio, reads its `tools/list`, and
   aggregates every tool (namespaced `${serverId}.${name}`) into one router, with

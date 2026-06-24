@@ -33,6 +33,36 @@ leads on R@1 (+4.3pts) and on MRR (70.6%, best here) and trails BM25 only
 marginally at R@8 (89.4% vs 91.5%) — the earlier unweighted regression (83.0%)
 is largely recovered. TF-IDF still edges out at R@8. Substring is far behind.
 
+## Blind real-MCP corpus — external validity (38 real tools, 30 queries)
+
+Tool surfaces from real public MCP servers
+(`@modelcontextprotocol/server-{filesystem,github,git,fetch}`), with queries
+phrased the way a user describes the task — **not** derived from any synonym
+table — scored **BM25-only (no synonym tuning)**. This is the "unknown products,
+no tuning" floor that answers "did you just grade your own homework?".
+
+| ranker | R@1 | R@3 | R@5 | R@8 | MRR |
+|---|---|---|---|---|---|
+| bm25 | 36.7% | 53.3% | 70.0% | 73.3% | 47.0% |
+| bm25+expansion | 36.7% | 53.3% | 70.0% | 73.3% | 47.0% |
+| tfidf | 30.0% | 53.3% | 63.3% | 73.3% | 43.9% |
+| substring | 43.3% | 53.3% | 63.3% | 66.7% | 50.0% |
+
+(`bm25` == `bm25+expansion` because this corpus ships **no synonyms** — the
+honest untuned baseline.)
+
+Honest reading: with **no domain tuning**, R@1 is modest (~37%) — vocabulary gaps
+("save my work" → `git_commit`, "folder" → `directory`) bite without synonyms —
+but the right tool lands in the **top-8 ~73%** of the time, which is what the
+funnel needs (the host LLM picks from the shortlist, not the top-1). Two humbling
+notes, published as-is: (1) the raw substring baseline actually edges BM25 at
+**R@1** here (43% vs 37%) on these short descriptions, though BM25 wins by R@8;
+(2) this is exactly where a small domain `synonyms` overlay earns its keep — the
+corpus-aware default leaves expansion off for descriptions like these, but an
+operator can opt in. Caveat: manifest + queries authored by the project from
+public docs, not an independent third party; the anti-gaming properties (real
+descriptions, intent-phrased queries, zero synonym tuning) hold.
+
 ## Synthetic corpora — scaling behavior (vocab-gap queries)
 
 Federated manifests with **terse** descriptions and deliberately colloquial
