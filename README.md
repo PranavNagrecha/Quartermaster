@@ -15,8 +15,9 @@ instead of 200 — no embedding model, no network, no API key.
 ---
 
 > **Status: early / alpha — the P0 benchmark verdict is in.** The core ranker
-> works and is extracted from a production system (see [Heritage](#heritage));
-> the proxy and Claude Code plugin are scaffolded.
+> works and is extracted from a production system (see [Heritage](#heritage)); the
+> proxy (`quartermaster-mcp`) is **built and runnable end-to-end** (federation +
+> `retrieve_tools` + `call_tool`); the Claude Code plugin is still scaffolded.
 >
 > **Verdict — GO.** Zero-dependency BM25 is a genuinely good router: **91.5%
 > recall@8** on a real 171-tool manifest, beating a substring baseline
@@ -107,10 +108,33 @@ const router = createRouter(tools, {
 });
 ```
 
-## Quick start (proxy) — scaffolded
+For agents, prefer `route()` over `search()` — it adds a `confidence`
+(`none` / `low` / `high`) and a `guidance` string, so the model knows when *not*
+to trust the shortlist. Synonym weighting auto-tunes to the corpus
+(`expansionWeight` defaults off on rich descriptions, on for terse ones; override
+explicitly if you want).
 
-Put Quartermaster in front of N MCP servers; agents load one `retrieve_tools`
-function instead of every schema. See [`packages/proxy`](packages/proxy/).
+## Quick start (proxy)
+
+Put Quartermaster in front of N MCP servers; agents load `retrieve_tools` +
+`call_tool` instead of every downstream schema. Point it at a `quartermaster.json`:
+
+```json
+{
+  "servers": [
+    { "id": "github", "command": "npx", "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": { "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}" } }
+  ]
+}
+```
+
+```bash
+quartermaster-mcp --config ./quartermaster.json
+```
+
+It spawns the downstream servers, aggregates their tools, and serves a ranked,
+schema-hydrated shortlist via `retrieve_tools` — the model then calls the chosen
+tool through `call_tool`. See [`packages/proxy`](packages/proxy/).
 
 ## Packages
 

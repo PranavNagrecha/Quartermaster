@@ -1,14 +1,14 @@
 /**
  * quartermaster-mcp — a drop-in MCP proxy.
  *
- * Exposes ONE meta-tool, `retrieve_tools`, over MCP. It returns a ranked,
- * confidence-annotated shortlist (with descriptions) for a natural-language
- * query, built by the offline @quartermaster/core router — so the client loads
- * one tool instead of every downstream schema. It advises; the host LLM decides.
+ * Federates N downstream MCP servers behind two meta-tools: `retrieve_tools`
+ * (a ranked, schema-hydrated, confidence-annotated shortlist for a natural-language
+ * query, built by the offline @quartermaster/core router) and `call_tool` (forwards
+ * the chosen tool to the right downstream). The client loads two tools instead of
+ * every downstream schema. It advises; the host LLM decides.
  *
- * P2-1: the manifest is supplied statically in the config. Downstream federation
- * (spawning real MCP servers, aggregating `tools/list`, forwarding `tools/call`)
- * lands in P2-3 / P2-4.
+ * Two modes: federated (config `servers` — spawn + aggregate `tools/list` +
+ * forward `tools/call`) and static (config `tools` — a fixed manifest, discovery only).
  */
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
@@ -98,17 +98,17 @@ export function createServer(config: ProxyConfig): Server {
 
   server.setRequestHandler(CallToolRequestSchema, async (req) => {
     if (req.params.name !== 'retrieve_tools') {
-      throw new Error(`unknown tool: ${req.params.name}`);
+      return errorResult(`unknown tool: ${req.params.name}`);
     }
     const args = req.params.arguments ?? {};
     const query = (args as Record<string, unknown>).query;
     if (typeof query !== 'string' || query.trim() === '') {
-      throw new Error('retrieve_tools: `query` (non-empty string) is required.');
+      return errorResult('retrieve_tools: `query` (non-empty string) is required.');
     }
     const kRaw = (args as Record<string, unknown>).k;
     const k = typeof kRaw === 'number' && kRaw > 0 ? Math.floor(kRaw) : defaultK;
     const result = retrieveTools(router, query, k);
-    return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }] };
   });
 
   return server;
