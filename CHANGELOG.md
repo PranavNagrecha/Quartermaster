@@ -26,6 +26,10 @@ All notable changes to this project are documented here. Format based on
   + MRR for all four rankers across the heritage corpus and synthetic 50–1000-tool
   manifests, plus token-reduction (~95–99%) and the two-regime interpretation.
 
+- **Corpus-aware expansion default** — when `expansionWeight` isn't set, it now
+  auto-defaults from the corpus: `0` (off) on rich descriptions (avg >200 chars,
+  where expansion adds noise), `0.5` on terse ones. Makes the opt-in toggle
+  automatic for operators who won't tune; explicit values still win. Zero-dep, no ML.
 - **`route()` low-confidence signal** — `router.route(query, k)` returns the
   shortlist plus `confidence` (`none` / `low` / `high`) and a `guidance` string,
   so the host LLM knows when not to trust the result (nothing matched, or a

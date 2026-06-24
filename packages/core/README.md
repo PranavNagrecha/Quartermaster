@@ -39,7 +39,9 @@ const shortlist = router.search('how do I file a bug?', 8);
 - The tool **name is weighted** (`nameWeight=2`) because the name encodes intent
   (`create_issue`) even when the prose description doesn't echo the query.
 - **Synonyms** are off by default. Supply a map to bridge domain vocabulary;
-  expanded terms carry `expansionWeight` (default `0.5`, `0` disables) so they
-  nudge ranking without washing out exact-term matches.
+  expanded terms carry `expansionWeight` so they nudge ranking without washing
+  out exact-term matches. `expansionWeight` **auto-defaults by corpus**: `0` (off)
+  when average description length is rich (>200 chars, where expansion adds noise),
+  `0.5` when terse. Set it explicitly to override.
 
 See [how it works](../../docs/how-it-works.md).

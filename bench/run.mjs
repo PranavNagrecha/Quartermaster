@@ -73,7 +73,9 @@ function substringRouter(tools) {
 
 const VARIANTS = [
   { id: 'bm25', build: (f) => createRouter(f.tools) },
-  { id: 'bm25+expansion', build: (f) => createRouter(f.tools, { synonyms: f.synonyms ?? {} }) },
+  // Explicit expansionWeight 0.5 so this row shows WEIGHTED expansion regardless
+  // of the corpus-aware auto-default (P1-16), which would turn it off on rich corpora.
+  { id: 'bm25+expansion', build: (f) => createRouter(f.tools, { synonyms: f.synonyms ?? {}, expansionWeight: 0.5 }) },
   { id: 'tfidf', build: (f) => createRouter(f.tools, { ranker: 'tfidf' }) },
   { id: 'substring', build: (f) => substringRouter(f.tools) },
 ];

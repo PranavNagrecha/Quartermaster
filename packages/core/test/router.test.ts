@@ -116,3 +116,32 @@ test('route reports low confidence on a near-tie', () => {
   assert.equal(res.confidence, 'low');
   assert.ok(res.candidates.length >= 2);
 });
+
+// Corpus-aware expansion default (P1-16).
+const FILLER = 'lorem ipsum dolor sit amet consectetur '.repeat(8); // ~310 chars (rich)
+test('terse corpus auto-enables expansion', () => {
+  const terse = [
+    { name: 'a.one', description: 'alpha' },
+    { name: 'b.two', description: 'beta' },
+  ];
+  const tools = createRouter(terse, { synonyms: { alpha: ['beta'] } }).search('alpha', 2).map((c) => c.tool);
+  assert.ok(tools.includes('b.two')); // synonym surfaced → expansion on
+});
+
+test('rich corpus auto-disables expansion', () => {
+  const rich = [
+    { name: 'a.one', description: `alpha ${FILLER}` },
+    { name: 'b.two', description: `beta ${FILLER}` },
+  ];
+  const tools = createRouter(rich, { synonyms: { alpha: ['beta'] } }).search('alpha', 2).map((c) => c.tool);
+  assert.ok(!tools.includes('b.two')); // expansion auto-off on rich descriptions
+});
+
+test('explicit expansionWeight overrides the auto-default', () => {
+  const rich = [
+    { name: 'a.one', description: `alpha ${FILLER}` },
+    { name: 'b.two', description: `beta ${FILLER}` },
+  ];
+  const tools = createRouter(rich, { synonyms: { alpha: ['beta'] }, expansionWeight: 0.5 }).search('alpha', 2).map((c) => c.tool);
+  assert.ok(tools.includes('b.two')); // explicit weight wins over auto-off
+});
