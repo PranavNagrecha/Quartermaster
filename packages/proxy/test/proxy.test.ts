@@ -3,7 +3,7 @@ import { test } from 'node:test';
 // Import the built dist (the package as consumed): index re-exports across files
 // with NodeNext `.js` specifiers, which raw type-stripping of src can't resolve.
 // CI builds before testing; the loop's local flow does too.
-import { buildStaticRouter, createServer, createServerFromIndex, resolveCall, retrieveTools } from '../dist/index.js';
+import { buildStaticRouter, createServer, createServerFromIndex, forwardCall, resolveCall, retrieveTools } from '../dist/index.js';
 
 /** A minimal fake FederatedIndex (no real downstream — exercises routing only). */
 function fakeIndex() {
@@ -74,4 +74,25 @@ test('resolveCall throws on an unknown tool', () => {
 
 test('createServerFromIndex builds a federated server without throwing', () => {
   assert.doesNotThrow(() => createServerFromIndex(fakeIndex()));
+});
+
+// Forwarding hardening (P2-4): failures come back as isError results, never thrown.
+test('forwardCall returns the downstream result on success', async () => {
+  const res = await forwardCall(fakeIndex(), 'github.create_issue', {});
+  assert.ok(!res.isError);
+  assert.equal(res.content[0]?.text, 'ok');
+});
+
+test('forwardCall returns an isError result when the downstream throws', async () => {
+  const idx = fakeIndex();
+  idx.clients.set('github', { callTool: async () => { throw new Error('boom'); } });
+  const res = await forwardCall(idx, 'github.create_issue', {});
+  assert.equal(res.isError, true);
+  assert.match(res.content[0]?.text ?? '', /failed: boom/);
+});
+
+test('forwardCall returns an isError result for an unknown tool', async () => {
+  const res = await forwardCall(fakeIndex(), 'nope.tool', {});
+  assert.equal(res.isError, true);
+  assert.match(res.content[0]?.text ?? '', /unknown tool/);
 });
