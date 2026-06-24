@@ -12,4 +12,5 @@ All notable changes to this project are documented here. Format based on
 - `quartermaster-mcp` — drop-in MCP proxy scaffold exposing a single
   `retrieve_tools` over N downstream servers.
 - Claude Code plugin manifest + marketplace listing.
-- `bench/` recall@K harness scaffold and benchmark methodology.
+- `bench/` recall@K + MRR harness (`bench/run.mjs`): runs BM25 / BM25+expansion /
+  TF-IDF over fixture manifests, reports recall@1/3/5/8 and MRR, optional JSON output.
