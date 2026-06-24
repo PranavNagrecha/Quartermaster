@@ -28,9 +28,13 @@ export interface FederatedIndex {
   readonly clients: Map<string, Client>;
   /** namespaced tool name → owning server id (for call routing). */
   readonly toolToServer: Map<string, string>;
+  /** namespaced tool name → JSON inputSchema (for schema hydration in retrieve_tools). */
+  readonly schemas: Map<string, unknown>;
 }
 
-async function connectDownstream(server: DownstreamServer): Promise<{ client: Client; tools: Tool[] }> {
+async function connectDownstream(
+  server: DownstreamServer,
+): Promise<{ client: Client; tools: Tool[]; schemas: Map<string, unknown> }> {
   const transport = new StdioClientTransport({
     command: server.command,
     args: server.args ? [...server.args] : [],
@@ -38,8 +42,12 @@ async function connectDownstream(server: DownstreamServer): Promise<{ client: Cl
   });
   const client = new Client({ name: 'quartermaster-mcp', version: '0.1.0' }, { capabilities: {} });
   await client.connect(transport);
-  const listed = await client.listTools();
-  return { client, tools: namespaceTools(server.id, listed.tools ?? []) };
+  const raw = (await client.listTools()).tools ?? [];
+  const schemas = new Map<string, unknown>();
+  for (const t of raw) {
+    if (t.inputSchema !== undefined) schemas.set(`${server.id}.${t.name}`, t.inputSchema);
+  }
+  return { client, tools: namespaceTools(server.id, raw), schemas };
 }
 
 /**
@@ -57,15 +65,17 @@ export async function buildToolIndex(config: ProxyConfig): Promise<FederatedInde
 
   const clients = new Map<string, Client>();
   const toolToServer = new Map<string, string>();
+  const schemas = new Map<string, unknown>();
   const allTools: Tool[] = [];
 
   for (const server of servers) {
-    const { client, tools } = await connectDownstream(server);
-    clients.set(server.id, client);
-    for (const tool of tools) {
+    const conn = await connectDownstream(server);
+    clients.set(server.id, conn.client);
+    for (const tool of conn.tools) {
       allTools.push(tool);
       toolToServer.set(tool.name, server.id);
     }
+    for (const [name, schema] of conn.schemas) schemas.set(name, schema);
   }
 
   if (allTools.length === 0) {
@@ -74,5 +84,5 @@ export async function buildToolIndex(config: ProxyConfig): Promise<FederatedInde
     );
   }
 
-  return { router: createRouter(allTools, { synonyms: config.synonyms }), clients, toolToServer };
+  return { router: createRouter(allTools, { synonyms: config.synonyms }), clients, toolToServer, schemas };
 }

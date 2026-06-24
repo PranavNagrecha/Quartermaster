@@ -47,10 +47,20 @@ export function buildStaticRouter(config: ProxyConfig): Router {
   return createRouter(tools, { synonyms: config.synonyms });
 }
 
-/** The `retrieve_tools` result: a confidence-annotated shortlist + guidance. Advises, does not decide. */
-export function retrieveTools(router: Router, query: string, k = 8) {
+/**
+ * The `retrieve_tools` result: a confidence-annotated shortlist + guidance.
+ * When a `schemas` map (namespaced tool name → JSON inputSchema) is supplied,
+ * each candidate is HYDRATED with its `inputSchema` — so the host LLM gets the
+ * full tool definition (name + description + schema) for just the shortlist, and
+ * can form a `call_tool` request without loading every downstream schema. That
+ * hydration is what makes the token win real. Advises, does not decide.
+ */
+export function retrieveTools(router: Router, query: string, k = 8, schemas?: ReadonlyMap<string, unknown>) {
   const { candidates, confidence, guidance } = router.route(query, k, { includeDescription: true });
-  return { confidence, guidance, candidates };
+  const hydrated = schemas
+    ? candidates.map((c) => (schemas.has(c.tool) ? { ...c, inputSchema: schemas.get(c.tool) } : c))
+    : candidates;
+  return { confidence, guidance, candidates: hydrated };
 }
 
 /** Construct the MCP server exposing `retrieve_tools`. The transport is connected by `startServer` / the bin. */
