@@ -21,6 +21,14 @@ test('interpolateEnv throws a clear error when a referenced var is unset', () =>
   assert.throws(() => interpolateEnv({ TOKEN: '${MISSING}' }, {}), /env var "MISSING".*not set/);
 });
 
+test('namespacing keeps same-bare-name tools from different servers distinct (collision policy)', () => {
+  const a = namespaceTools('github', [{ name: 'create_issue', description: 'x' }]);
+  const b = namespaceTools('gitlab', [{ name: 'create_issue', description: 'y' }]);
+  assert.equal(a[0]?.name, 'github.create_issue');
+  assert.equal(b[0]?.name, 'gitlab.create_issue');
+  assert.notEqual(a[0]?.name, b[0]?.name); // no collision — distinct namespaced names
+});
+
 test('namespaceTools prefixes names with the server id and tags category', () => {
   const out = namespaceTools('github', [
     { name: 'create_issue', description: 'Open a new issue' },
