@@ -92,3 +92,27 @@ test('description is off by default', () => {
   const router = createRouter(TOOLS);
   assert.equal(router.search('open a new issue', 2)[0]?.description, undefined);
 });
+
+// Low-confidence signal (P1-8).
+test('route reports none when nothing matches', () => {
+  const res = createRouter(TOOLS).route('zzzqqq totally unrelated nonsense', 5);
+  assert.equal(res.confidence, 'none');
+  assert.equal(res.candidates.length, 0);
+  assert.match(res.guidance, /no tools|rephrase|broaden/i);
+});
+
+test('route reports high confidence on a clear winner', () => {
+  const res = createRouter(TOOLS).route('open a new issue', 5);
+  assert.equal(res.candidates[0]?.tool, 'github.create_issue');
+  assert.equal(res.confidence, 'high');
+});
+
+test('route reports low confidence on a near-tie', () => {
+  const tied = [
+    { name: 'a.alpha', description: 'manage widgets in the system' },
+    { name: 'b.beta', description: 'manage widgets in the system' },
+  ];
+  const res = createRouter(tied).route('manage widgets', 5);
+  assert.equal(res.confidence, 'low');
+  assert.ok(res.candidates.length >= 2);
+});

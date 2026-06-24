@@ -27,6 +27,10 @@ const shortlist = router.search('how do I file a bug?', 8);
 - `search(query, k = 8, opts?): ToolCandidate[]` — `{ tool, score, category }[]`, highest score first.
   - `{ includeDescription: true }` → adds each tool's `description` to its candidate (so the host LLM can choose from more than the name; the proxy uses this).
   - `{ explain: true }` → adds `matches`, a per-term `{ term, contribution }[]` breakdown (desc) for tuning.
+- `route(query, k = 8, opts?): RouteResult` — `search` plus a `confidence`
+  (`none` / `low` / `high`) and a `guidance` string for the host LLM, so it knows
+  when *not* to trust the shortlist. `none` = nothing matched; `low` = top
+  candidates near-tied (relative `marginThreshold`, default 0.15); `high` = clear winner.
 
 ### Why these defaults
 
