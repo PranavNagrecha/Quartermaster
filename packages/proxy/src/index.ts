@@ -236,16 +236,31 @@ export function parseCliArgs(argv: readonly string[]): { config: string } {
   return { config };
 }
 
+/** Close every downstream client (terminates their child processes). Never rejects. */
+export async function closeIndex(index: FederatedIndex): Promise<void> {
+  await Promise.allSettled([...index.clients.values()].map((client) => client.close()));
+}
+
 /**
  * Load a config and boot the proxy over stdio. Federated mode when the config has
- * `servers` (spawns + aggregates them); static mode when it has `tools`.
+ * `servers` (spawns + aggregates them, and closes them cleanly on SIGINT/SIGTERM);
+ * static mode when it has `tools`.
  */
 export async function startFromConfig(configPath: string): Promise<void> {
   const config = loadConfig(configPath);
   const federated = (config.servers?.length ?? 0) > 0;
-  const server = federated
-    ? createServerFromIndex(await buildToolIndex(config), { k: config.k })
-    : createServer(config);
+  let server: Server;
+  if (federated) {
+    const index = await buildToolIndex(config);
+    server = createServerFromIndex(index, { k: config.k });
+    const shutdown = (): void => {
+      void closeIndex(index).finally(() => process.exit(0));
+    };
+    process.once('SIGINT', shutdown);
+    process.once('SIGTERM', shutdown);
+  } else {
+    server = createServer(config);
+  }
   await server.connect(new StdioServerTransport());
   console.error(`quartermaster-mcp: ready (${federated ? 'federated' : 'static'} mode).`);
 }
