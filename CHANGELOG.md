@@ -69,6 +69,11 @@ All notable changes to this project are documented here. Format based on
   a namespaced-name → inputSchema map from downstream `tools/list`. The host LLM
   gets the full tool definition (name + description + schema) for just the
   shortlist — the token win without losing callability. +2 tests.
+- **Cursor host recipe (P3-3)** — [`docs/recipes/cursor.md`](docs/recipes/cursor.md)
+  + a committed example proxy config (`examples/cursor/quartermaster.json`): a
+  copy-paste `~/.cursor/mcp.json` that runs `quartermaster-mcp` federating
+  filesystem + github behind one tool (same `mcpServers` shape works for Claude
+  Desktop). A test parses the example config so the recipe can't drift. +1 test.
 - **Blind real-MCP corpus (P1-15)** — `bench/cases/real-mcp-blind.json`: tool
   surfaces from real public MCP servers (filesystem/github/git/fetch) + 30
   user-intent queries (not from synonym tables), scored BM25-only. Honest

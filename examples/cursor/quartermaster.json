@@ -1,0 +1,17 @@
+{
+  "servers": [
+    {
+      "id": "filesystem",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/Users/me/projects"]
+    },
+    {
+      "id": "github",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": { "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}" }
+    }
+  ],
+  "synonyms": { "bug": ["issue"], "folder": ["directory"] },
+  "k": 8
+}
