@@ -22,3 +22,6 @@ All notable changes to this project are documented here. Format based on
   with 47 hand-authored colloquial gold queries, as a production-credibility corpus.
 - Substring/keyword baseline (mcp-funnel-style) in the bench — the honest "no
   relevance model" floor for comparison. Consistently lowest recall across corpora.
+- `docs/benchmarks.md` now carries **real, reproducible numbers** — recall@1/3/5/8
+  + MRR for all four rankers across the heritage corpus and synthetic 50–1000-tool
+  manifests, plus token-reduction (~95–99%) and the two-regime interpretation.

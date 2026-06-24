@@ -1,48 +1,95 @@
 # Benchmarks
 
-> **Honest status:** the harness is scaffolded; numbers below are placeholders to
-> be filled by `pnpm bench`. We publish whatever it says, including losses.
+> **Real numbers, reproducible.** Everything below is produced by `pnpm bench`
+> (deterministic — seeded synthetic fixtures + the committed heritage corpus).
+> We publish whatever it says, including losses. Re-run to reproduce.
 
 ## What we measure
 
-**recall@K** — for a labeled set of (query → correct tool) pairs over a large
-tool manifest, how often is the correct tool in the top K? This is the metric
-that matters because the host LLM makes the final pick from the shortlist.
+**recall@K** — for a labeled set of (query → correct tool) pairs over a tool
+manifest, how often is the correct tool in the top K? This is the metric that
+matters, because the host LLM makes the final pick from the shortlist. We also
+report **MRR** and **token reduction**.
 
-We also track **MRR** and **token reduction** (schemas avoided vs. loading all).
+Four rankers: **bm25** (default), **bm25+expansion** (the zero-dep "hybrid":
+BM25 + offline synonym query-expansion), **tfidf** (heritage cosine), and a
+**substring** baseline (mcp-funnel-style, no relevance model — the floor).
 
-## The thesis we're testing
+## Heritage corpus — the credibility test (171 real tools, 47 queries)
 
-The literature and the incumbents agree pure lexical ranking degrades at scale —
-mcpproxy-go's own benchmark reports **BM25 alone ≈ 14% top-1 past a few hundred
-tools, vs ≈ 94% for hybrid** (BM25 + embeddings). Quartermaster refuses the
-embedding-model dependency, so the open question is:
+Real sf-intelligence tool manifest (names + descriptions), independent
+hand-authored colloquial queries.
 
-> Can a **zero-dependency hybrid** — BM25 + offline query expansion (synonyms,
-> light stemming) — recover enough of that gap to be the right *default* for
-> users who don't want a model?
+| ranker | R@1 | R@3 | R@5 | R@8 | MRR |
+|---|---|---|---|---|---|
+| bm25 | 57.4% | 74.5% | 83.0% | 91.5% | 68.5% |
+| bm25+expansion | 61.7% | 76.6% | 78.7% | 83.0% | 69.8% |
+| tfidf | 55.3% | 76.6% | 85.1% | **93.6%** | 68.2% |
+| substring | 29.8% | 48.9% | 51.1% | 61.7% | 40.7% |
 
-If yes, that's the novel, publishable result. If no, Quartermaster is still a
-clean, honest, host-agnostic BM25 router for small-to-mid manifests — and the
-benchmark says so plainly.
+On **rich** real descriptions, plain BM25 is already strong (91.5% R@8). Synonym
+expansion helps R@1 (+4.3pts) but **hurts R@8** (83.0%) — unweighted expansion
+adds noise. TF-IDF edges out at R@8. Substring is far behind everywhere.
 
-## Datasets
+## Synthetic corpora — scaling behavior (vocab-gap queries)
 
-- A synthetic manifest grown to 50 / 200 / 500 / 1000 tools.
-- Real public MCP server manifests (GitHub, Slack, filesystem, …) concatenated.
-- The sf-intelligence 170-tool manifest (the heritage corpus) with its
-  router-recall@K labels.
+Federated manifests with **terse** descriptions and deliberately colloquial
+queries (stress the vocabulary gap).
 
-## Comparisons
+**recall@1** (the hardest metric):
 
-- Quartermaster BM25 (default)
-- Quartermaster BM25 + synonym expansion ("zero-dep hybrid")
-- Quartermaster TF-IDF (heritage)
-- Baseline: substring filter (mcp-funnel-style)
-
-| Manifest size | BM25 | BM25 + expansion | TF-IDF | substring |
+| tools | bm25 | bm25+expansion | tfidf | substring |
 |---|---|---|---|---|
-| 50 | _tbd_ | _tbd_ | _tbd_ | _tbd_ |
-| 200 | _tbd_ | _tbd_ | _tbd_ | _tbd_ |
-| 500 | _tbd_ | _tbd_ | _tbd_ | _tbd_ |
-| 1000 | _tbd_ | _tbd_ | _tbd_ | _tbd_ |
+| 50 | 50.0% | **87.5%** | 50.0% | 31.3% |
+| 200 | 40.0% | **75.0%** | 37.5% | 37.5% |
+| 500 | 5.0% | **45.0%** | 7.5% | 10.0% |
+| 1000 | 7.5% | **35.0%** | 5.0% | 2.5% |
+
+**recall@8**:
+
+| tools | bm25 | bm25+expansion | tfidf | substring |
+|---|---|---|---|---|
+| 50 | 68.8% | **100%** | 68.8% | 68.8% |
+| 200 | 67.5% | **92.5%** | 67.5% | 60.0% |
+| 500 | 65.0% | **80.0%** | 62.5% | 57.5% |
+| 1000 | 57.5% | **77.5%** | 57.5% | 37.5% |
+
+On terse descriptions, plain BM25 R@1 collapses at scale (5–7.5% at 500–1000,
+matching the literature's ~14% claim) — and here expansion is a decisive win
+(5–9× R@1, +20pts R@8). This is the regime most real-world MCP servers (short
+tool descriptions) actually live in.
+
+## Token reduction
+
+Returning the top-K instead of every tool definition is the whole point. With
+roughly uniform descriptions, the tool-description payload shrinks by `1 − K/N`:
+
+| corpus | tools (N) | top-K | payload reduction |
+|---|---|---|---|
+| heritage-sfi | 171 | 8 | ~95% |
+| synthetic-1000 | 990 | 8 | ~99% |
+
+(Heritage descriptions average ~930 bytes each; ~159 KB of tool text all-in vs
+~7.5 KB for a top-8 shortlist.)
+
+## Reading the two regimes
+
+The expansion result **flips with description richness**:
+
+- **Terse descriptions** (synthetic; most real MCP servers): expansion is a big,
+  clear win — it bridges the vocabulary gap the lexical match can't.
+- **Rich descriptions** (heritage): plain BM25 already captures the vocabulary;
+  unweighted expansion adds noise and can lower recall@K.
+
+So the honest headline is **not** "beats hybrid embeddings" — it's "competitive,
+zero-dependency routing whose expansion earns its place as a *toggle*, tuned to
+the corpus." See the verdict in the README status.
+
+## Reproduce
+
+```bash
+pnpm bench    # generates synthetic fixtures + runs all rankers over every corpus
+```
+
+Numbers above are deterministic for a given core + generator; they will move as
+the ranker evolves (e.g. P1-1 weighted expansion). Re-run to get current values.
