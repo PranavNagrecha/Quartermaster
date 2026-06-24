@@ -16,6 +16,7 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprot
 import { createRouter, type Router, type Tool } from '@quartermaster/core';
 
 export { loadConfig, parseConfig } from './config.js';
+export { buildToolIndex, namespaceTools, type FederatedIndex } from './downstream.js';
 
 export interface DownstreamServer {
   /** Display id, used to namespace tool names (e.g. `github`). */

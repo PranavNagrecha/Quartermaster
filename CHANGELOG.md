@@ -35,6 +35,11 @@ All notable changes to this project are documented here. Format based on
   so the host LLM knows when not to trust the result (nothing matched, or a
   near-tie). Uses a relative margin (BM25 scores are unbounded). Configurable via
   `marginThreshold` / `minTopScore`.
+- **Downstream federation (P2-3)** — `buildToolIndex(config)` spawns each
+  configured downstream MCP server over stdio, reads its `tools/list`, and
+  aggregates every tool (namespaced `${serverId}.${name}`) into one router, with
+  a per-tool→server map for call routing. Fails loud on no servers / zero
+  aggregated tools. `namespaceTools` exposed (pure). +3 tests (real-spawn test in P2-6).
 - **Proxy config loader (P2-2)** — `loadConfig(path)` / `parseConfig(text)` read
   and validate `quartermaster.json` (tools / servers / synonyms / k) with
   zero extra deps and actionable error messages (which field, which index, what's
