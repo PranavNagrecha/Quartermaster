@@ -25,3 +25,11 @@ All notable changes to this project are documented here. Format based on
 - `docs/benchmarks.md` now carries **real, reproducible numbers** — recall@1/3/5/8
   + MRR for all four rankers across the heritage corpus and synthetic 50–1000-tool
   manifests, plus token-reduction (~95–99%) and the two-regime interpretation.
+
+### Changed
+
+- README status now carries the **P0 benchmark verdict (GO)**: zero-dependency
+  BM25 is a strong router (91.5% recall@8 on a real 171-tool manifest); synonym
+  expansion is an opt-in, corpus-tuned win (big on terse manifests, can hurt on
+  rich ones). Positioning sharpened to "competitive routing, no model" — not
+  "beats hybrid embeddings".

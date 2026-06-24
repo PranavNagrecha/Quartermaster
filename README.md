@@ -14,9 +14,18 @@ instead of 200 — no embedding model, no network, no API key.
 
 ---
 
-> **Status: early / alpha.** The core ranker works and is extracted from a
-> production system (see [Heritage](#heritage)). The proxy and Claude Code
-> plugin are scaffolded. Benchmarks are honest and in progress — see below.
+> **Status: early / alpha — the P0 benchmark verdict is in.** The core ranker
+> works and is extracted from a production system (see [Heritage](#heritage));
+> the proxy and Claude Code plugin are scaffolded.
+>
+> **Verdict — GO.** Zero-dependency BM25 is a genuinely good router: **91.5%
+> recall@8** on a real 171-tool manifest, beating a substring baseline
+> everywhere. Optional offline synonym expansion is a **large** win on
+> terse/vocabulary-poor manifests (the common case — **5–9× recall@1** at
+> 500–1000 tools) but can *hurt* recall on rich descriptions, so it ships
+> **opt-in and corpus-tuned**. We do **not** claim to beat hybrid embeddings —
+> we claim competitive routing with **no model dependency at all**. Numbers:
+> [benchmarks](docs/benchmarks.md).
 
 ## The problem
 
@@ -62,12 +71,12 @@ Quartermaster fills:
 - **Advises, doesn't decide.** Returns a shortlist + guidance, never a forced pick.
 - **Offline & private.** Nothing phones home; suitable for air-gapped / regulated environments.
 
-We do **not** claim best-in-class retrieval accuracy. Pure lexical ranking trails
-hybrid embedding approaches at large tool counts — that is a known result. Our
-thesis (see [Benchmarks](docs/benchmarks.md)) is that a **zero-dependency hybrid**
-(BM25 + offline query expansion) can close enough of that gap to be the right
-default for anyone who doesn't want a model dependency. `bench/` exists to prove
-or disprove this in the open.
+We do **not** claim best-in-class retrieval accuracy. The
+[benchmarks](docs/benchmarks.md) show the honest picture: zero-dependency BM25 is
+a strong router, and offline query expansion adds a large recall boost on terse
+manifests (where the vocabulary gap bites) while adding noise on rich ones — so
+expansion is an opt-in toggle, not a silver bullet. The bet that paid off: you
+can get competitive tool routing with **no embedding model at all**.
 
 ## Quick start (library)
 
