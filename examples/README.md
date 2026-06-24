@@ -1,20 +1,22 @@
 # examples/
 
-## Available now
+Runnable configs and demos. Start here if you forked the repo and want to see
+the funnel work.
 
-- [`cursor/quartermaster.json`](cursor/quartermaster.json) — a proxy config that
-  federates the filesystem + GitHub MCP servers behind one `retrieve_tools`.
-  Used by the [Cursor recipe](../docs/recipes/cursor.md) (same config works for
-  Claude Desktop). Validated by a test, so it can't drift.
-- [`synonyms/business-to-dev.json`](synonyms/business-to-dev.json) — a starter
-  synonym overlay (bug→issue, folder→directory, …) you can point a config's
-  `synonymsFile` at.
+## Try first
 
-The funnel's real numbers on real/ synthetic manifests live in
-[`docs/benchmarks.md`](../docs/benchmarks.md) (reproduce with `pnpm bench`).
+- [`static-demo/`](static-demo/) — **start here.** A tiny manifest + `demo.mjs`
+  that prints ranked shortlists in seconds (no MCP host needed). Also shows how
+  to run the proxy in static (discovery-only) mode.
+- [`cursor/quartermaster.json`](cursor/quartermaster.json) — federates filesystem
+  + GitHub MCP servers. Used by the [Cursor recipe](../docs/recipes/cursor.md)
+  (same `mcpServers` shape works for Claude Desktop). Validated by a test.
+- [`synonyms/business-to-dev.json`](synonyms/business-to-dev.json) — starter
+  synonym overlay (`bug`→`issue`, `folder`→`directory`, …) for `synonymsFile`.
+
+Reproduce the published benchmark numbers: [`docs/benchmarks.md`](../docs/benchmarks.md)
+(`pnpm bench` from the repo root).
 
 ## Planned
 
-- `static-demo/` — a runnable hello-world (a tiny manifest + a few queries) so a
-  non-technical reader can see the ranking work in a few seconds.
 - `github-jira-slack/` — a multi-server transcript of queries → shortlists.

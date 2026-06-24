@@ -1,9 +1,14 @@
 # quartermaster-mcp
 
-A drop-in, offline MCP proxy that federates N downstream MCP servers behind two
-tools — `retrieve_tools` (a ranked, schema-hydrated shortlist for a query) and
-`call_tool` (forwards the chosen tool to the right downstream). The client loads
-two tools instead of every downstream schema.
+A drop-in, offline MCP proxy that federates N downstream MCP servers behind a
+small set of meta-tools. The client loads **three** tools instead of every
+downstream schema.
+
+| Meta-tool | Federated (`servers`) | Static (`tools`) |
+|---|---|---|
+| `retrieve_tools` | ranked shortlist + schemas + confidence | ranked shortlist + confidence |
+| `call_tool` | forwards to the right downstream | not available (discovery only) |
+| `list_servers` | connected servers + tool counts | not available |
 
 **Self-contained:** the BM25/TF-IDF ranker is bundled in, so the only runtime
 dependency is the MCP SDK — no embedding model, no network, no API key.
@@ -19,17 +24,20 @@ client ──► quartermaster-mcp ──► github-mcp
                   │         └──► jira-mcp
                   │         └──► slack-mcp
                   ▼
-          exposes ONE tool: retrieve_tools(query) → ranked shortlist
+     retrieve_tools / call_tool / list_servers  (federated)
+     retrieve_tools only                        (static manifest)
 ```
 
-The client loads a single tool instead of every downstream schema. On a query,
-`retrieve_tools` returns the top-K relevant tools (offline BM25, no model), and
-the host LLM picks from them.
+On a query, `retrieve_tools` returns the top-K relevant tools (offline BM25, no
+model). The host LLM picks one and invokes it through `call_tool` (federated
+mode).
 
 ## Config
 
-Federate live downstream servers (`${VAR}` is resolved from the environment at
-launch; an unset var fails fast):
+### Federated (recommended)
+
+Spawn live downstream servers. `${VAR}` is resolved from the environment at
+launch; an unset var fails fast:
 
 ```json
 {
@@ -40,18 +48,40 @@ launch; an unset var fails fast):
       "args": ["-y", "@modelcontextprotocol/server-github"],
       "env": { "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}" }
     }
-  ]
+  ],
+  "synonyms": { "bug": ["issue"] },
+  "k": 8
 }
 ```
 
-A static manifest also works for discovery-only use — give `tools` (a fixed
-`{ name, description }[]`) instead of `servers`, optional `synonyms`, and `k`.
+Exposes `retrieve_tools`, `call_tool`, and `list_servers`.
 
-Run it:
+### Static (discovery only)
+
+A fixed tool manifest — useful for demos and ranking experiments. **No**
+`call_tool` (nothing to forward to):
+
+```json
+{
+  "tools": [
+    { "name": "github.create_issue", "description": "Open a new issue in a repository" },
+    { "name": "slack.post_message", "description": "Send a message to a Slack channel" }
+  ],
+  "synonyms": { "bug": ["issue"] },
+  "k": 8
+}
+```
+
+See [`examples/static-demo`](../../examples/static-demo/) for a runnable static example.
+
+## Run
 
 ```bash
 npx quartermaster-mcp --config ./quartermaster.json
 ```
 
-Federated mode when the config has `servers` (spawns + aggregates them); static
-mode when it has `tools`. Serves `retrieve_tools` + `call_tool` over MCP stdio.
+From a source checkout (after `pnpm -r build`):
+
+```bash
+node packages/proxy/bin/quartermaster-mcp.js --config ./quartermaster.json
+```

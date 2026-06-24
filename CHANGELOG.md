@@ -5,6 +5,22 @@ All notable changes to this project are documented here. Format based on
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-06-24
+
+### Fixed
+- **Docs truth:** `packages/proxy/README.md` now correctly distinguishes federated
+  (`retrieve_tools` + `call_tool` + `list_servers`) vs static (`retrieve_tools`
+  only). Bug-report template no longer references the removed `@pranavnpm/core`
+  package.
+- MCP server/client version strings now read from `package.json` (were stuck at
+  `0.1.0`).
+
+### Added
+- [`examples/static-demo/`](examples/static-demo/) — runnable ranker demo +
+  static proxy config for new users.
+- [`docs/getting-started.md`](docs/getting-started.md) — plain-language onboarding
+  (paths for curious users, Cursor users, contributors).
+
 ## [0.1.1] - 2026-06-24
 
 First stable public release — shipped as a **single npm package**.

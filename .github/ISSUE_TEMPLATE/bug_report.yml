@@ -18,7 +18,7 @@ body:
     id: version
     attributes:
       label: Version
-      description: "@pranavnpm/core / quartermaster-mcp version"
+      description: "quartermaster-mcp version (from package.json or `npm ls quartermaster-mcp`)"
   - type: dropdown
     id: ranker
     attributes:

@@ -18,6 +18,7 @@ import type { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { loadConfig, parseConfig } from './config.js';
 import { applyOverlays, buildToolIndex, interpolateEnv, namespaceTools } from './downstream.js';
 import type { FederatedIndex } from './downstream.js';
+import { PACKAGE_VERSION } from './version.js';
 
 export { loadConfig, parseConfig };
 export { buildToolIndex, namespaceTools, interpolateEnv, applyOverlays };
@@ -80,7 +81,7 @@ export function retrieveTools(router: Router, query: string, k = 8, schemas?: Re
 export function createServer(config: ProxyConfig): Server {
   const router = buildStaticRouter(config);
   const defaultK = config.k ?? 8;
-  const server = new Server({ name: 'quartermaster-mcp', version: '0.1.0' }, { capabilities: { tools: {} } });
+  const server = new Server({ name: 'quartermaster-mcp', version: PACKAGE_VERSION }, { capabilities: { tools: {} } });
 
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
     tools: [
@@ -180,7 +181,7 @@ export async function forwardCall(index: FederatedIndex, toolName: string, args:
  */
 export function createServerFromIndex(index: FederatedIndex, opts: { k?: number } = {}): Server {
   const defaultK = opts.k ?? 8;
-  const server = new Server({ name: 'quartermaster-mcp', version: '0.1.0' }, { capabilities: { tools: {} } });
+  const server = new Server({ name: 'quartermaster-mcp', version: PACKAGE_VERSION }, { capabilities: { tools: {} } });
 
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
     tools: [

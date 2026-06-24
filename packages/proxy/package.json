@@ -1,6 +1,6 @@
 {
   "name": "quartermaster-mcp",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Offline, zero-config MCP proxy: federate N downstream servers behind one ranked retrieve_tools. Self-contained — no embedding model, no network.",
   "type": "module",
   "bin": {
@@ -8,7 +8,7 @@
   },
   "files": ["dist/index.js", "bin", "README.md"],
   "scripts": {
-    "build": "esbuild src/index.ts --bundle --platform=node --format=esm --target=node22 --external:@modelcontextprotocol/sdk --external:@modelcontextprotocol/sdk/* --outfile=dist/index.js",
+    "build": "esbuild src/index.ts --bundle --platform=node --format=esm --target=node22 --external:@modelcontextprotocol/sdk --external:@modelcontextprotocol/sdk/* --loader:.json=json --outfile=dist/index.js",
     "test": "node --test --experimental-strip-types test/*.test.ts",
     "lint": "tsc -p tsconfig.json --noEmit"
   },

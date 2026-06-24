@@ -8,7 +8,7 @@ An offline, zero-dependency tool-router for MCP. It funnels *N* tools down to a
 ranked shortlist for a natural-language query, so the model reads ~8 tools
 instead of 200 — no embedding model, no network, no API key.
 
-[Quick start](docs/quickstart.md) · [How it works](docs/how-it-works.md) · [Which one?](docs/choosing.md) · [Benchmarks](docs/benchmarks.md)
+[Quick start](docs/quickstart.md) · [Getting started](docs/getting-started.md) · [How it works](docs/how-it-works.md) · [Which one?](docs/choosing.md) · [Benchmarks](docs/benchmarks.md)
 
 </div>
 

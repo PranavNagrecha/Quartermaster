@@ -8,6 +8,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport, getDefaultEnvironment } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { createRouter, type Router, type Tool } from '@quartermaster/core';
 import type { DownstreamServer, ProxyConfig } from './index.js';
+import { PACKAGE_VERSION } from './version.js';
 
 /**
  * Resolve `${VAR}` references in a config env map from `source` (default
@@ -81,7 +82,7 @@ async function connectDownstream(
     args: server.args ? [...server.args] : [],
     env: { ...getDefaultEnvironment(), ...(server.env ? interpolateEnv(server.env) : {}) },
   });
-  const client = new Client({ name: 'quartermaster-mcp', version: '0.1.0' }, { capabilities: {} });
+  const client = new Client({ name: 'quartermaster-mcp', version: PACKAGE_VERSION }, { capabilities: {} });
   await client.connect(transport);
   const raw = (await client.listTools()).tools ?? [];
   const schemas = new Map<string, unknown>();

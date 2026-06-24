@@ -31,6 +31,7 @@ Federated mode (config has `servers`) spawns + aggregates them; static mode
 
 ## Next
 
+- [Getting started](getting-started.md) (plain-language onboarding)
 - [How it works](how-it-works.md)
 - [Quartermaster vs Anthropic Tool Search](choosing.md)
 - [Benchmarks](benchmarks.md)
