@@ -57,4 +57,11 @@ const router = buildStaticRouter(config);
 retrieveTools(router, 'file a bug', 5);            // { confidence, guidance, candidates }
 ```
 
-The bin (`quartermaster-mcp --config ./quartermaster.json`) is wired in P2-5.
+Run it:
+
+```bash
+quartermaster-mcp --config ./quartermaster.json
+```
+
+Federated mode when the config has `servers` (spawns + aggregates them); static
+mode when it has `tools`. Serves `retrieve_tools` + `call_tool` over MCP stdio.
