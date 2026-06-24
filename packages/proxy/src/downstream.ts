@@ -43,6 +43,23 @@ export function namespaceTools(
   }));
 }
 
+/**
+ * Merge per-tool keyword overlays into the matching tools' `keywords`, so an
+ * operator can tune recall (e.g. add "bug defect" to `create_issue`) from config
+ * without touching the downstream servers. Keyed by namespaced tool name. Pure.
+ */
+export function applyOverlays(
+  tools: readonly Tool[],
+  overlays?: Readonly<Record<string, { readonly keywords?: string }>>,
+): Tool[] {
+  if (overlays === undefined) return [...tools];
+  return tools.map((t) => {
+    const extra = overlays[t.name]?.keywords;
+    if (extra === undefined || extra === '') return t;
+    return { ...t, keywords: [t.keywords, extra].filter(Boolean).join(' ') };
+  });
+}
+
 /** The result of federating downstream servers: the router plus the maps needed to forward calls + manage lifecycle. */
 export interface FederatedIndex {
   readonly router: Router;
@@ -113,5 +130,6 @@ export async function buildToolIndex(config: ProxyConfig): Promise<FederatedInde
     );
   }
 
-  return { router: createRouter(allTools, { synonyms: config.synonyms }), clients, toolToServer, toolToBare, schemas };
+  const router = createRouter(applyOverlays(allTools, config.overlays), { synonyms: config.synonyms });
+  return { router, clients, toolToServer, toolToBare, schemas };
 }

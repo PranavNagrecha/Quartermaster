@@ -29,6 +29,15 @@ test('buildStaticRouter fails loud on an empty manifest', () => {
   assert.throws(() => buildStaticRouter({ tools: [] }), /no tools to index/);
 });
 
+test('config overlays let an operator tune recall (P2-10)', () => {
+  const router = buildStaticRouter({
+    tools: [{ name: 'gh.create_issue', description: 'Open a new issue' }],
+    overlays: { 'gh.create_issue': { keywords: 'bug defect report' } },
+  });
+  // "bug" isn't in the description; the overlay keyword makes it match.
+  assert.equal(router.search('file a bug', 5)[0]?.tool, 'gh.create_issue');
+});
+
 test('retrieveTools returns a confidence-annotated shortlist with descriptions', () => {
   const router = buildStaticRouter(CONFIG);
   const res = retrieveTools(router, 'file a bug', 5);

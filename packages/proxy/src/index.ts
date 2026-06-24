@@ -16,11 +16,11 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprot
 import { createRouter, type Router, type Tool } from '@quartermaster/core';
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { loadConfig, parseConfig } from './config.js';
-import { buildToolIndex, interpolateEnv, namespaceTools } from './downstream.js';
+import { applyOverlays, buildToolIndex, interpolateEnv, namespaceTools } from './downstream.js';
 import type { FederatedIndex } from './downstream.js';
 
 export { loadConfig, parseConfig };
-export { buildToolIndex, namespaceTools, interpolateEnv };
+export { buildToolIndex, namespaceTools, interpolateEnv, applyOverlays };
 export type { FederatedIndex } from './downstream.js';
 
 export interface DownstreamServer {
@@ -39,6 +39,8 @@ export interface ProxyConfig {
   readonly servers?: readonly DownstreamServer[];
   /** Optional query-expansion synonyms passed to the ranker. */
   readonly synonyms?: Readonly<Record<string, readonly string[]>>;
+  /** Optional per-tool keyword overlays (namespaced name → `{ keywords }`) to tune recall without touching downstream servers. */
+  readonly overlays?: Readonly<Record<string, { readonly keywords?: string }>>;
   /** Shortlist size returned by retrieve_tools. Default 8. */
   readonly k?: number;
 }
@@ -51,7 +53,7 @@ export function buildStaticRouter(config: ProxyConfig): Router {
       'quartermaster: no tools to index — provide config.tools (static manifest) or config.servers (P2-3 downstream).',
     );
   }
-  return createRouter(tools, { synonyms: config.synonyms });
+  return createRouter(applyOverlays(tools, config.overlays), { synonyms: config.synonyms });
 }
 
 /**

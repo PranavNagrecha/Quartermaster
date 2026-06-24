@@ -71,6 +71,19 @@ function validateSynonyms(v: unknown, src: string): Record<string, string[]> | u
   return out;
 }
 
+function validateOverlays(v: unknown, src: string): Record<string, { keywords?: string }> | undefined {
+  if (v === undefined) return undefined;
+  if (!isObject(v)) throw new Error(`quartermaster: ${src} "overlays" must be an object of toolName → { keywords }.`);
+  const out: Record<string, { keywords?: string }> = {};
+  for (const [key, val] of Object.entries(v)) {
+    if (!isObject(val) || (val.keywords !== undefined && typeof val.keywords !== 'string')) {
+      throw new Error(`quartermaster: ${src} overlays["${key}"] must be an object with a string "keywords".`);
+    }
+    out[key] = { keywords: val.keywords as string | undefined };
+  }
+  return out;
+}
+
 function validateK(v: unknown, src: string): number | undefined {
   if (v === undefined) return undefined;
   if (typeof v !== 'number' || !Number.isFinite(v) || v <= 0) {
@@ -100,6 +113,7 @@ export function parseConfig(text: string, source = '<config>'): ProxyConfig {
     tools,
     servers,
     synonyms: validateSynonyms(data.synonyms, source),
+    overlays: validateOverlays(data.overlays, source),
     k: validateK(data.k, source),
   };
 }

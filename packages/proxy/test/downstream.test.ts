@@ -1,6 +1,16 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { buildToolIndex, interpolateEnv, namespaceTools } from '../dist/index.js'; // built dist — see proxy.test.ts note
+import { applyOverlays, buildToolIndex, interpolateEnv, namespaceTools } from '../dist/index.js'; // built dist — see proxy.test.ts note
+
+test('applyOverlays merges keyword overlays into the matching tool only', () => {
+  const tools = [
+    { name: 'gh.create_issue', description: 'Open a new issue' },
+    { name: 'gh.search_code', description: 'Search code' },
+  ];
+  const out = applyOverlays(tools, { 'gh.create_issue': { keywords: 'bug defect' } });
+  assert.match(out[0]?.keywords ?? '', /bug defect/);
+  assert.equal(out[1]?.keywords, undefined);
+});
 
 test('interpolateEnv resolves ${VAR} from the source env', () => {
   const out = interpolateEnv({ TOKEN: '${GH}', LITERAL: 'plain' }, { GH: 'secret123' });
