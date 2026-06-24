@@ -35,6 +35,12 @@ All notable changes to this project are documented here. Format based on
   so the host LLM knows when not to trust the result (nothing matched, or a
   near-tie). Uses a relative margin (BM25 scores are unbounded). Configurable via
   `marginThreshold` / `minTopScore`.
+- **Federated server + `call_tool` (P2-9, invocation model A)** —
+  `createServerFromIndex(index)` exposes two static tools: `retrieve_tools`
+  (discovery, hydrated schemas) and `call_tool(name, arguments)` (execution —
+  forwards the chosen namespaced tool to the right downstream client). Meta-executor
+  model: host-agnostic, no dynamic tool-list. `resolveCall` (pure) maps a
+  namespaced name → client + bare name. +3 tests.
 - **Schema hydration (P2-8)** — `retrieveTools(..., schemas)` now hydrates each
   shortlisted candidate with its full `inputSchema`, and `buildToolIndex` captures
   a namespaced-name → inputSchema map from downstream `tools/list`. The host LLM

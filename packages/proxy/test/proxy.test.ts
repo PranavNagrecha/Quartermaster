@@ -3,7 +3,17 @@ import { test } from 'node:test';
 // Import the built dist (the package as consumed): index re-exports across files
 // with NodeNext `.js` specifiers, which raw type-stripping of src can't resolve.
 // CI builds before testing; the loop's local flow does too.
-import { buildStaticRouter, createServer, retrieveTools } from '../dist/index.js';
+import { buildStaticRouter, createServer, createServerFromIndex, resolveCall, retrieveTools } from '../dist/index.js';
+
+/** A minimal fake FederatedIndex (no real downstream — exercises routing only). */
+function fakeIndex() {
+  return {
+    router: buildStaticRouter(CONFIG),
+    clients: new Map([['github', { callTool: async () => ({ content: [{ type: 'text', text: 'ok' }] }) }]]),
+    toolToServer: new Map([['github.create_issue', 'github']]),
+    schemas: new Map([['github.create_issue', { type: 'object' }]]),
+  };
+}
 
 const CONFIG = {
   tools: [
@@ -50,4 +60,18 @@ test('retrieveTools omits inputSchema when no schemas map is given', () => {
   const router = buildStaticRouter(CONFIG);
   const top = retrieveTools(router, 'file a bug', 5).candidates[0];
   assert.equal((top as { inputSchema?: unknown }).inputSchema, undefined);
+});
+
+// Invocation model A — call_tool routing (P2-9).
+test('resolveCall maps a namespaced tool to its client + bare name', () => {
+  const { bareName } = resolveCall(fakeIndex(), 'github.create_issue');
+  assert.equal(bareName, 'create_issue');
+});
+
+test('resolveCall throws on an unknown tool', () => {
+  assert.throws(() => resolveCall(fakeIndex(), 'nope.tool'), /unknown tool/);
+});
+
+test('createServerFromIndex builds a federated server without throwing', () => {
+  assert.doesNotThrow(() => createServerFromIndex(fakeIndex()));
 });

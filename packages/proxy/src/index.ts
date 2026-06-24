@@ -14,9 +14,12 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { createRouter, type Router, type Tool } from '@quartermaster/core';
+import type { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import type { FederatedIndex } from './downstream.js';
 
 export { loadConfig, parseConfig } from './config.js';
-export { buildToolIndex, namespaceTools, type FederatedIndex } from './downstream.js';
+export { buildToolIndex, namespaceTools } from './downstream.js';
+export type { FederatedIndex } from './downstream.js';
 
 export interface DownstreamServer {
   /** Display id, used to namespace tool names (e.g. `github`). */
@@ -111,4 +114,86 @@ export function createServer(config: ProxyConfig): Server {
 export async function startServer(config: ProxyConfig): Promise<void> {
   const server = createServer(config);
   await server.connect(new StdioServerTransport());
+}
+
+/** Resolve a namespaced tool name to its downstream client + bare tool name. Throws on an unknown tool. Pure. */
+export function resolveCall(index: FederatedIndex, toolName: string): { client: Client; bareName: string } {
+  const serverId = index.toolToServer.get(toolName);
+  const client = serverId !== undefined ? index.clients.get(serverId) : undefined;
+  if (serverId === undefined || client === undefined) {
+    throw new Error(`call_tool: unknown tool "${toolName}". Use retrieve_tools to discover valid names.`);
+  }
+  return { client, bareName: toolName.slice(serverId.length + 1) };
+}
+
+/**
+ * The FEDERATED MCP server: exposes `retrieve_tools` (discovery, with hydrated
+ * schemas) AND `call_tool` (execution — forwards the chosen namespaced tool to
+ * the right downstream client). Invocation model **A** (meta-executor):
+ * host-agnostic, two static tools, no dynamic tool-list. Transport connected by
+ * the bin (P2-5).
+ */
+export function createServerFromIndex(index: FederatedIndex, opts: { k?: number } = {}): Server {
+  const defaultK = opts.k ?? 8;
+  const server = new Server({ name: 'quartermaster-mcp', version: '0.1.0' }, { capabilities: { tools: {} } });
+
+  server.setRequestHandler(ListToolsRequestSchema, async () => ({
+    tools: [
+      {
+        name: 'retrieve_tools',
+        description:
+          'Find the most relevant tools for a natural-language task. Returns a ranked, ' +
+          'confidence-annotated shortlist with descriptions AND input schemas — read it, then call the ' +
+          'tool you need via call_tool. Use this instead of loading every tool up front.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            query: { type: 'string', description: 'What you are trying to do, in natural language.' },
+            k: { type: 'number', description: 'Max tools to return (default 8).' },
+          },
+          required: ['query'],
+        },
+      },
+      {
+        name: 'call_tool',
+        description:
+          'Invoke a tool discovered via retrieve_tools. Pass its full namespaced name (e.g. ' +
+          '"github.create_issue") and its arguments; the call is forwarded to the right downstream server.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            name: { type: 'string', description: 'Namespaced tool name from retrieve_tools (server.tool).' },
+            arguments: { type: 'object', description: "Arguments matching that tool's inputSchema." },
+          },
+          required: ['name'],
+        },
+      },
+    ],
+  }));
+
+  server.setRequestHandler(CallToolRequestSchema, async (req) => {
+    const args = req.params.arguments ?? {};
+    if (req.params.name === 'retrieve_tools') {
+      const query = (args as Record<string, unknown>).query;
+      if (typeof query !== 'string' || query.trim() === '') {
+        throw new Error('retrieve_tools: `query` (non-empty string) is required.');
+      }
+      const kRaw = (args as Record<string, unknown>).k;
+      const k = typeof kRaw === 'number' && kRaw > 0 ? Math.floor(kRaw) : defaultK;
+      const result = retrieveTools(index.router, query, k, index.schemas);
+      return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+    }
+    if (req.params.name === 'call_tool') {
+      const toolName = (args as Record<string, unknown>).name;
+      if (typeof toolName !== 'string') {
+        throw new Error('call_tool: `name` (the namespaced server.tool string) is required.');
+      }
+      const { client, bareName } = resolveCall(index, toolName);
+      const toolArgs = (args as Record<string, unknown>).arguments;
+      return client.callTool({ name: bareName, arguments: (toolArgs ?? {}) as Record<string, unknown> });
+    }
+    throw new Error(`unknown tool: ${req.params.name}`);
+  });
+
+  return server;
 }
