@@ -79,7 +79,7 @@ export interface RouterConfig {
   readonly k1?: number;
   /** BM25 length-normalization. Default 0.75. */
   readonly b?: number;
-  /** Weight of synonym-expanded query terms relative to originals (1.0). Default 0.5; `0` disables expansion. */
+  /** Weight of synonym-expanded query terms vs originals (1.0). Default: AUTO — `0` on rich-description corpora (expansion hurts), `0.5` on terse ones; set explicitly to override. */
   readonly expansionWeight?: number;
   /** `route()` flags `low` confidence when `(top−second)/top` is below this. Default 0.15. (Relative, since BM25 scores are unbounded.) */
   readonly marginThreshold?: number;
@@ -159,6 +159,9 @@ interface DocRecord {
   tfidf?: Map<string, number>;
 }
 
+/** Above this average description length (chars), expansion auto-defaults OFF (rich corpus carries its own vocabulary). */
+const RICH_DESCRIPTION_CHARS = 200;
+
 /**
  * Build a ranker over `tools`. The index is built once, eagerly; `search` is a
  * pure scan. Returns the top-`k` candidates (score > 0), highest first.
@@ -170,13 +173,14 @@ export const createRouter = (tools: readonly Tool[], config: RouterConfig = {}) 
   const nameWeight = config.nameWeight ?? 2;
   const k1 = config.k1 ?? 1.5;
   const b = config.b ?? 0.75;
-  const expansionWeight = config.expansionWeight ?? 0.5;
   const marginThreshold = config.marginThreshold ?? 0.15;
   const minTopScore = config.minTopScore ?? 0;
 
   const records: DocRecord[] = [];
   const df = new Map<string, number>();
   let totalLen = 0;
+  let descLenSum = 0;
+  let descCount = 0;
 
   for (const tool of tools) {
     const tokens = tokenize(buildDoc(tool, nameWeight), stopwords);
@@ -185,7 +189,14 @@ export const createRouter = (tools: readonly Tool[], config: RouterConfig = {}) 
     for (const term of tf.keys()) df.set(term, (df.get(term) ?? 0) + 1);
     records.push({ name: tool.name, category: tool.category ?? null, description: tool.description, tokens, tf });
     totalLen += tokens.length;
+    if (tool.description !== undefined) { descLenSum += tool.description.length; descCount += 1; }
   }
+
+  // Corpus-aware expansion default (P1-16): rich descriptions already carry the
+  // vocabulary (expansion adds noise → off); terse descriptions benefit from it.
+  // An explicit `config.expansionWeight` always wins.
+  const avgDescLen = descCount > 0 ? descLenSum / descCount : 0;
+  const expansionWeight = config.expansionWeight ?? (avgDescLen > RICH_DESCRIPTION_CHARS ? 0 : 0.5);
 
   const N = records.length;
   const avgdl = N > 0 ? totalLen / N : 0;
