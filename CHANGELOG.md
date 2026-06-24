@@ -14,3 +14,6 @@ All notable changes to this project are documented here. Format based on
 - Claude Code plugin manifest + marketplace listing.
 - `bench/` recall@K + MRR harness (`bench/run.mjs`): runs BM25 / BM25+expansion /
   TF-IDF over fixture manifests, reports recall@1/3/5/8 and MRR, optional JSON output.
+- `bench/generate.mjs` — deterministic synthetic fixture generator (federated
+  manifests at 50/200/500/1000 tools with colloquial, vocabulary-gap gold queries
+  and a general business→dev synonym overlay). `pnpm bench` now generates then runs.
