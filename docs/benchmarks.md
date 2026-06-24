@@ -24,14 +24,17 @@ hand-authored colloquial queries.
 |---|---|---|---|---|---|
 | bm25 | 57.4% | 74.5% | 83.0% | 91.5% | 68.5% |
 | bm25+expansion | 61.7% | 74.5% | 83.0% | 89.4% | **70.6%** |
+| bm25+exp (unweighted, w=1) | 61.7% | 76.6% | 78.7% | 83.0% | 69.8% |
 | tfidf | 55.3% | 78.7% | 85.1% | **93.6%** | 68.8% |
 | substring | 29.8% | 48.9% | 51.1% | 61.7% | 40.7% |
 
 On **rich** real descriptions, plain BM25 is already strong (91.5% R@8). With
 **weighted** expansion (P1-1, `expansionWeight=0.5`) the synonym variant now
 leads on R@1 (+4.3pts) and on MRR (70.6%, best here) and trails BM25 only
-marginally at R@8 (89.4% vs 91.5%) — the earlier unweighted regression (83.0%)
-is largely recovered. TF-IDF still edges out at R@8. Substring is far behind.
+marginally at R@8 (89.4% vs 91.5%). The **unweighted** row (`w=1`) is kept on
+purpose to show why weighting exists: dropping the weight costs ~6pts of recall@8
+(89.4% → 83.0%) as expanded terms add noise. TF-IDF still edges out at R@8.
+Substring is far behind.
 
 ## Blind real-MCP corpus — external validity (38 real tools, 30 queries)
 

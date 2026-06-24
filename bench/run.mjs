@@ -76,6 +76,9 @@ const VARIANTS = [
   // Explicit expansionWeight 0.5 so this row shows WEIGHTED expansion regardless
   // of the corpus-aware auto-default (P1-16), which would turn it off on rich corpora.
   { id: 'bm25+expansion', build: (f) => createRouter(f.tools, { synonyms: f.synonyms ?? {}, expansionWeight: 0.5 }) },
+  // Unweighted (expansionWeight 1.0): kept as a comparison row to show WHY weighting
+  // exists — on rich corpora it noticeably lowers recall@K vs the weighted 0.5 row.
+  { id: 'bm25+exp(w=1)', build: (f) => createRouter(f.tools, { synonyms: f.synonyms ?? {}, expansionWeight: 1.0 }) },
   { id: 'tfidf', build: (f) => createRouter(f.tools, { ranker: 'tfidf' }) },
   { id: 'substring', build: (f) => substringRouter(f.tools) },
 ];

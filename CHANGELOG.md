@@ -74,6 +74,10 @@ All notable changes to this project are documented here. Format based on
   copy-paste `~/.cursor/mcp.json` that runs `quartermaster-mcp` federating
   filesystem + github behind one tool (same `mcpServers` shape works for Claude
   Desktop). A test parses the example config so the recipe can't drift. +1 test.
+- **Unweighted-expansion bench row (P1-18)** — the bench now runs a
+  `bm25+exp(w=1)` variant alongside the weighted `0.5` one, so `docs/benchmarks.md`
+  visibly shows weighting recovering ~6pts of heritage recall@8 (83.0% → 89.4%) —
+  the proof of why P1-1 exists.
 - **Blind real-MCP corpus (P1-15)** — `bench/cases/real-mcp-blind.json`: tool
   surfaces from real public MCP servers (filesystem/github/git/fetch) + 30
   user-intent queries (not from synonym tables), scored BM25-only. Honest
