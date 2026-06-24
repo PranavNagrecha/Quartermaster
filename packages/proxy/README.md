@@ -35,12 +35,18 @@ Today (P2-1) — a static manifest:
 }
 ```
 
-Planned (P2-3) — federate live downstream servers:
+Federate live downstream servers (`${VAR}` is resolved from the environment at
+launch; an unset var fails fast):
 
 ```json
 {
   "servers": [
-    { "id": "github", "command": "npx", "args": ["-y", "@modelcontextprotocol/server-github"] }
+    {
+      "id": "github",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": { "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}" }
+    }
   ]
 }
 ```

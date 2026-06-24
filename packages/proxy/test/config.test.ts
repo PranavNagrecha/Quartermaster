@@ -12,10 +12,20 @@ test('parses a valid static-manifest config', () => {
   assert.equal(cfg.k, 5);
 });
 
-test('parses a valid downstream-servers config', () => {
-  const cfg = parseConfig(JSON.stringify({ servers: [{ id: 'github', command: 'npx', args: ['-y', 'x'] }] }));
+test('parses a valid downstream-servers config (with env)', () => {
+  const cfg = parseConfig(
+    JSON.stringify({ servers: [{ id: 'github', command: 'npx', args: ['-y', 'x'], env: { TOKEN: '${GH}' } }] }),
+  );
   assert.equal(cfg.servers?.length, 1);
   assert.equal(cfg.servers?.[0]?.id, 'github');
+  assert.deepEqual(cfg.servers?.[0]?.env, { TOKEN: '${GH}' });
+});
+
+test('rejects a server whose env is not a string map', () => {
+  assert.throws(
+    () => parseConfig(JSON.stringify({ servers: [{ id: 'gh', command: 'npx', env: { TOKEN: 123 } }] })),
+    /\.env must be an object of string/,
+  );
 });
 
 test('rejects invalid JSON with an actionable message', () => {

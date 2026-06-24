@@ -9,6 +9,28 @@ import { StdioClientTransport, getDefaultEnvironment } from '@modelcontextprotoc
 import { createRouter, type Router, type Tool } from '@quartermaster/core';
 import type { DownstreamServer, ProxyConfig } from './index.js';
 
+/**
+ * Resolve `${VAR}` references in a config env map from `source` (default
+ * `process.env`). Literal values pass through unchanged; an unset `${VAR}` throws
+ * a clear error rather than silently launching a server without its token. Pure.
+ */
+export function interpolateEnv(
+  env: Readonly<Record<string, string>>,
+  source: Readonly<Record<string, string | undefined>> = process.env,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [key, raw] of Object.entries(env)) {
+    out[key] = raw.replace(/\$\{([A-Za-z_][A-Za-z0-9_]*)\}/g, (_match, name: string) => {
+      const value = source[name];
+      if (value === undefined) {
+        throw new Error(`quartermaster: env var "${name}" (referenced by env."${key}") is not set in the environment.`);
+      }
+      return value;
+    });
+  }
+  return out;
+}
+
 /** Namespace a downstream server's tools as `${serverId}.${name}` and tag their category. Pure. */
 export function namespaceTools(
   serverId: string,
@@ -38,7 +60,7 @@ async function connectDownstream(
   const transport = new StdioClientTransport({
     command: server.command,
     args: server.args ? [...server.args] : [],
-    env: getDefaultEnvironment(),
+    env: { ...getDefaultEnvironment(), ...(server.env ? interpolateEnv(server.env) : {}) },
   });
   const client = new Client({ name: 'quartermaster-mcp', version: '0.1.0' }, { capabilities: {} });
   await client.connect(transport);
