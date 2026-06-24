@@ -1,0 +1,123 @@
+<div align="center">
+
+# 🧭 Quartermaster
+
+**Issues your agent exactly the tools the mission needs — nothing more.**
+
+An offline, zero-dependency tool-router for MCP. It funnels *N* tools down to a
+ranked shortlist for a natural-language query, so the model reads ~8 tools
+instead of 200 — no embedding model, no network, no API key.
+
+[Quick start](docs/quickstart.md) · [How it works](docs/how-it-works.md) · [Benchmarks](docs/benchmarks.md) · [English](README.md) · [한국어](README_KO.md)
+
+</div>
+
+---
+
+> **Status: early / alpha.** The core ranker works and is extracted from a
+> production system (see [Heritage](#heritage)). The proxy and Claude Code
+> plugin are scaffolded. Benchmarks are honest and in progress — see below.
+
+## The problem
+
+Give a model 200 tools and two things break: every tool's schema is loaded into
+context on *every* turn (token tax), and the model has to pick the right one
+from 200 lookalikes (accuracy drops as the count grows). This is well-documented
+prior art — [RAG-MCP](https://arxiv.org/abs/2505.03275) names "prompt bloat and
+selection complexity," and [ToolRet (ACL 2025)](https://arxiv.org/abs/2503.01763)
+shows generic retrievers do poorly on tool selection specifically.
+
+## The shape: funnel advises, model decides
+
+```
+  query                 query
+    │                     │
+    ▼                     ▼
+┌────────┐         ┌──────────────┐  offline BM25 over
+│  LLM   │◄ 200    │ Quartermaster│  tool descriptions
+└───┬────┘ schemas └──────┬───────┘  (zero deps, no model)
+    │  picks wrong,        │ top-8 shortlist + guidance
+    │  huge context        ▼
+    ▼                ┌──────────────┐
+ a tool              │     LLM      │ reads a small,
+                     └──────┬───────┘ relevant set → picks
+                            ▼
+                       right tool(s)
+```
+
+Quartermaster doesn't *decide*. It returns a scored shortlist; the host LLM —
+already in the loop, free — makes the final call. So we optimize for
+**recall@K** ("is the right tool in the top K?"), not top-1.
+
+## What makes it different
+
+The MCP-router space is crowded (Anthropic's native Tool Search, mcpproxy-go,
+mcp-funnel, MCPJungle, …). We are honest about that — see the
+[comparison](docs/how-it-works.md#how-quartermaster-differs). The seam
+Quartermaster fills:
+
+- **Zero embedding model.** No torch, no model download, nothing to warm up. The
+  whole ranker is a few hundred lines of dependency-free TypeScript.
+- **Host-agnostic.** Works outside the Anthropic API — any MCP client, any model.
+- **Advises, doesn't decide.** Returns a shortlist + guidance, never a forced pick.
+- **Offline & private.** Nothing phones home; suitable for air-gapped / regulated environments.
+
+We do **not** claim best-in-class retrieval accuracy. Pure lexical ranking trails
+hybrid embedding approaches at large tool counts — that is a known result. Our
+thesis (see [Benchmarks](docs/benchmarks.md)) is that a **zero-dependency hybrid**
+(BM25 + offline query expansion) can close enough of that gap to be the right
+default for anyone who doesn't want a model dependency. `bench/` exists to prove
+or disprove this in the open.
+
+## Quick start (library)
+
+```bash
+npm install @quartermaster/core
+```
+
+```ts
+import { createRouter } from '@quartermaster/core';
+
+const router = createRouter([
+  { name: 'github.create_issue', description: 'Open a new issue in a repository' },
+  { name: 'github.search_code',  description: 'Search code across repositories' },
+  { name: 'jira.create_ticket',  description: 'Create a Jira ticket' },
+  // ...your full MCP manifest
+]);
+
+router.search('file a bug on the repo', 3);
+// → [{ tool: 'github.create_issue', score: 4.21, category: null }, ...]
+```
+
+Optionally bridge business vocabulary to technical terms with a synonym map:
+
+```ts
+const router = createRouter(tools, {
+  synonyms: { bug: ['issue', 'defect'], ticket: ['issue'] },
+});
+```
+
+## Quick start (proxy) — scaffolded
+
+Put Quartermaster in front of N MCP servers; agents load one `retrieve_tools`
+function instead of every schema. See [`packages/proxy`](packages/proxy/).
+
+## Packages
+
+| Package | What it is |
+|---|---|
+| [`@quartermaster/core`](packages/core/) | The zero-dependency BM25/TF-IDF ranker. Framework-agnostic. |
+| [`quartermaster-mcp`](packages/proxy/) | Drop-in MCP proxy that federates downstream servers behind one `retrieve_tools`. |
+| [`.claude-plugin/`](.claude-plugin/) | Claude Code plugin manifest (plugs into the custom tool-search seam). |
+
+## Heritage
+
+Extracted and generalized from the semantic funnel in
+[sf-intelligence](https://github.com/PranavNagrecha/Salesforce-Intelligence),
+a read-only intelligence layer that routes ~170 tools for one Salesforce org.
+The fork makes the tool corpus and synonyms injectable, and upgrades the default
+ranker from TF-IDF cosine to BM25.
+
+## License
+
+MIT © 2026 Pranav Nagrecha. See [LICENSE](LICENSE).

@@ -1,0 +1,43 @@
+{
+  "name": "@quartermaster/core",
+  "version": "0.1.0",
+  "description": "Offline, zero-dependency BM25/TF-IDF tool ranker — funnel many tools down to a ranked shortlist.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "README.md"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "node --test --experimental-strip-types test/*.test.ts",
+    "lint": "tsc -p tsconfig.json --noEmit"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "tool-router",
+    "tool-selection",
+    "tool-retrieval",
+    "bm25",
+    "tf-idf",
+    "offline",
+    "zero-dependency",
+    "llm",
+    "agents"
+  ],
+  "license": "MIT",
+  "author": "Pranav Nagrecha",
+  "repository": {
+    "type": "git",
+    "url": "github:PranavNagrecha/quartermaster",
+    "directory": "packages/core"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0"
+  }
+}

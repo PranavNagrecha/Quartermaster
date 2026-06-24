@@ -1,0 +1,26 @@
+name: Bug report
+description: Something in Quartermaster doesn't work as expected
+labels: [bug]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, what happened instead?
+    validations:
+      required: true
+  - type: input
+    id: query
+    attributes:
+      label: Query + tools
+      description: The query and a minimal tool manifest that reproduces it (if a ranking issue).
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: "@quartermaster/core / quartermaster-mcp version"
+  - type: dropdown
+    id: ranker
+    attributes:
+      label: Ranker
+      options: [bm25, tfidf, n/a]

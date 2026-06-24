@@ -1,0 +1,25 @@
+{
+  "name": "quartermaster-mcp",
+  "version": "0.1.0",
+  "description": "Drop-in MCP proxy that federates downstream servers behind one offline retrieve_tools function.",
+  "type": "module",
+  "bin": {
+    "quartermaster-mcp": "./bin/quartermaster-mcp.js"
+  },
+  "files": ["dist", "bin", "README.md"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "node --test --experimental-strip-types test/*.test.ts || true",
+    "lint": "tsc -p tsconfig.json --noEmit"
+  },
+  "keywords": ["mcp", "proxy", "gateway", "tool-router", "offline"],
+  "license": "MIT",
+  "author": "Pranav Nagrecha",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "@quartermaster/core": "workspace:^"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "name": "quartermaster-marketplace",
+  "owner": {
+    "name": "Pranav Nagrecha",
+    "url": "https://github.com/PranavNagrecha"
+  },
+  "plugins": [
+    {
+      "name": "quartermaster",
+      "source": "./",
+      "description": "Offline, zero-dependency tool-router for MCP — funnel many tools down to a ranked shortlist; the model decides.",
+      "version": "0.1.0"
+    }
+  ]
+}

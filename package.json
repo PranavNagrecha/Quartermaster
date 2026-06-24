@@ -1,0 +1,20 @@
+{
+  "name": "quartermaster-monorepo",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Offline, zero-dependency tool-router for MCP — funnel advises, model decides.",
+  "license": "MIT",
+  "author": "Pranav Nagrecha",
+  "homepage": "https://github.com/PranavNagrecha/quartermaster",
+  "repository": "github:PranavNagrecha/quartermaster",
+  "packageManager": "pnpm@9.0.0",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint",
+    "bench": "node bench/run.mjs"
+  }
+}
