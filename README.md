@@ -136,6 +136,9 @@ It spawns the downstream servers, aggregates their tools, and serves a ranked,
 schema-hydrated shortlist via `retrieve_tools` — the model then calls the chosen
 tool through `call_tool`. See [`packages/proxy`](packages/proxy/).
 
+**Host recipe:** [Use Quartermaster in Cursor](docs/recipes/cursor.md) (the same
+`mcpServers` config works for Claude Desktop).
+
 ## Packages
 
 | Package | What it is |
