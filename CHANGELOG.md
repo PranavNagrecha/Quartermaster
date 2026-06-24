@@ -5,6 +5,9 @@ All notable changes to this project are documented here. Format based on
 
 ## [Unreleased]
 
+### Fixed
+- README no longer claims BM25 beats the substring baseline "everywhere"; heritage and blind corpus numbers are both stated upfront.
+
 ## [0.1.3] - 2026-06-24
 
 ### Security

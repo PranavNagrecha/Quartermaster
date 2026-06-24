@@ -22,13 +22,15 @@ instead of 200 — no embedding model, no network, no API key.
 > (federation + `retrieve_tools` + `call_tool`); the Claude Code plugin is still
 > scaffolded.
 >
-> **Verdict — GO.** Zero-dependency BM25 is a genuinely good router: **91.5%
-> recall@8** on a real 171-tool manifest, beating a substring baseline
-> everywhere. Optional offline synonym expansion is a **large** win on
-> terse/vocabulary-poor manifests (the common case — **5–9× recall@1** at
-> 500–1000 tools) and, with weighting, only marginally trails BM25 at recall@8
-> on rich descriptions while leading on MRR — so it ships **opt-in and
-> corpus-tuned**. We do **not** claim to beat hybrid embeddings —
+> **Verdict — GO.** Zero-dependency BM25 is a genuinely good router on rich real
+> descriptions: **91.5% recall@8** on a 171-tool heritage manifest (substring:
+> 61.7% R@8). On a smaller **blind** real-MCP corpus with no synonym tuning,
+> recall@1 is modest (~37%) and substring can edge BM25 at R@1 — the funnel still
+> lands the right tool in the **top-8 ~73%** of the time. Optional offline synonym
+> expansion is a **large** win on terse/vocabulary-poor manifests (the common case
+> — **5–9× recall@1** at 500–1000 tools) and, with weighting, only marginally
+> trails BM25 at recall@8 on rich descriptions while leading on MRR — so it ships
+> **opt-in and corpus-tuned**. We do **not** claim to beat hybrid embeddings —
 > we claim competitive routing with **no model dependency at all**. Numbers:
 > [benchmarks](docs/benchmarks.md).
 
