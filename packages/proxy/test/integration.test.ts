@@ -47,3 +47,21 @@ test('forwardCall on an unknown tool returns an isError result (no crash)', asyn
   const res = await forwardCall(idx, 'echo.does_not_exist', {});
   assert.equal(res.isError, true);
 });
+
+// P2-15: a downstream that fails to start is skipped, not fatal.
+test('a broken downstream is skipped; the proxy runs degraded on the rest', { timeout: 20000 }, async () => {
+  const idx = await buildToolIndex({
+    servers: [
+      { id: 'echo', command: process.execPath, args: [FIXTURE] },
+      { id: 'broken', command: 'quartermaster-no-such-command-xyz', args: [] },
+    ],
+  });
+  try {
+    assert.equal(idx.toolToServer.get('echo.create_issue'), 'echo'); // working server is present
+    assert.equal(idx.clients.has('broken'), false); // broken one skipped
+  } finally {
+    for (const client of idx.clients.values()) {
+      if (typeof client.close === 'function') await client.close().catch(() => {});
+    }
+  }
+});
