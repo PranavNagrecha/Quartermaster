@@ -3,7 +3,7 @@ import { test } from 'node:test';
 // Import the built dist (the package as consumed): index re-exports across files
 // with NodeNext `.js` specifiers, which raw type-stripping of src can't resolve.
 // CI builds before testing; the loop's local flow does too.
-import { buildStaticRouter, createServer, createServerFromIndex, forwardCall, resolveCall, retrieveTools } from '../dist/index.js';
+import { buildStaticRouter, closeIndex, createServer, createServerFromIndex, forwardCall, resolveCall, retrieveTools } from '../dist/index.js';
 
 /** A minimal fake FederatedIndex (no real downstream — exercises routing only). */
 function fakeIndex() {
@@ -95,4 +95,30 @@ test('forwardCall returns an isError result for an unknown tool', async () => {
   const res = await forwardCall(fakeIndex(), 'nope.tool', {});
   assert.equal(res.isError, true);
   assert.match(res.content[0]?.text ?? '', /unknown tool/);
+});
+
+// Clean shutdown (P2-7).
+test('closeIndex closes every downstream client', async () => {
+  let closed = 0;
+  const idx = {
+    router: buildStaticRouter(CONFIG),
+    clients: new Map([
+      ['a', { close: async () => { closed++; } }],
+      ['b', { close: async () => { closed++; } }],
+    ]),
+    toolToServer: new Map(),
+    schemas: new Map(),
+  };
+  await closeIndex(idx);
+  assert.equal(closed, 2);
+});
+
+test('closeIndex tolerates a client whose close rejects', async () => {
+  const idx = {
+    router: buildStaticRouter(CONFIG),
+    clients: new Map([['a', { close: async () => { throw new Error('boom'); } }]]),
+    toolToServer: new Map(),
+    schemas: new Map(),
+  };
+  await assert.doesNotReject(() => closeIndex(idx));
 });

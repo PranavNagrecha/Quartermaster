@@ -35,6 +35,9 @@ All notable changes to this project are documented here. Format based on
   so the host LLM knows when not to trust the result (nothing matched, or a
   near-tie). Uses a relative margin (BM25 scores are unbounded). Configurable via
   `marginThreshold` / `minTopScore`.
+- **Clean shutdown (P2-7)** — `closeIndex(index)` closes every downstream client
+  (terminating their child processes), and the federated bin now closes them on
+  SIGINT/SIGTERM — no leaked subprocesses. +2 tests.
 - **End-to-end integration test (P2-6)** — a real fake downstream MCP server
   (`test/fixtures/echo-mcp-server.mjs`) is spawned over stdio and federated via
   `buildToolIndex`; tests assert namespaced aggregation + schema capture, that the
