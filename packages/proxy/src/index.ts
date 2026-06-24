@@ -120,14 +120,15 @@ export async function startServer(config: ProxyConfig): Promise<void> {
   await server.connect(new StdioServerTransport());
 }
 
-/** Resolve a namespaced tool name to its downstream client + bare tool name. Throws on an unknown tool. Pure. */
+/** Resolve a namespaced tool name to its downstream client + bare tool name (looked up, not derived). Throws on an unknown tool. Pure. */
 export function resolveCall(index: FederatedIndex, toolName: string): { client: Client; bareName: string } {
   const serverId = index.toolToServer.get(toolName);
+  const bareName = index.toolToBare.get(toolName);
   const client = serverId !== undefined ? index.clients.get(serverId) : undefined;
-  if (serverId === undefined || client === undefined) {
+  if (serverId === undefined || client === undefined || bareName === undefined) {
     throw new Error(`call_tool: unknown tool "${toolName}". Use retrieve_tools to discover valid names.`);
   }
-  return { client, bareName: toolName.slice(serverId.length + 1) };
+  return { client, bareName };
 }
 
 /** An MCP tool-error result — the host sees a recoverable tool error, not a thrown protocol error. */

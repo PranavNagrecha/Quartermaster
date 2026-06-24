@@ -11,6 +11,7 @@ function fakeIndex() {
     router: buildStaticRouter(CONFIG),
     clients: new Map([['github', { callTool: async () => ({ content: [{ type: 'text', text: 'ok' }] }) }]]),
     toolToServer: new Map([['github.create_issue', 'github']]),
+    toolToBare: new Map([['github.create_issue', 'create_issue']]),
     schemas: new Map([['github.create_issue', { type: 'object' }]]),
   };
 }
@@ -70,6 +71,18 @@ test('resolveCall maps a namespaced tool to its client + bare name', () => {
 
 test('resolveCall throws on an unknown tool', () => {
   assert.throws(() => resolveCall(fakeIndex(), 'nope.tool'), /unknown tool/);
+});
+
+// P2-18: bare name is looked up from the index, not derived by slicing — robust to dotted names.
+test('resolveCall returns the indexed bare name verbatim (handles dotted names)', () => {
+  const idx = {
+    router: buildStaticRouter(CONFIG),
+    clients: new Map([['srv', { callTool: async () => ({ content: [] }) }]]),
+    toolToServer: new Map([['srv.weird.tool.name', 'srv']]),
+    toolToBare: new Map([['srv.weird.tool.name', 'weird.tool.name']]),
+    schemas: new Map(),
+  };
+  assert.equal(resolveCall(idx, 'srv.weird.tool.name').bareName, 'weird.tool.name');
 });
 
 test('createServerFromIndex builds a federated server without throwing', () => {

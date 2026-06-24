@@ -79,6 +79,10 @@ All notable changes to this project are documented here. Format based on
   user-intent queries (not from synonym tables), scored BM25-only. Honest
   external-validity floor — ~37% R@1 / ~73% R@8 untuned — published in
   `docs/benchmarks.md` with the warts (substring edges R@1 on short descriptions).
+- **Bare tool name stored at index time (P2-18)** — `FederatedIndex` now carries
+  a `toolToBare` map captured during aggregation; `resolveCall` looks the bare
+  downstream name up instead of deriving it by slicing the namespaced name —
+  robust to dotted names, no assumption about the prefix. +1 test.
 - **Downstream federation (P2-3)** — `buildToolIndex(config)` spawns each
   configured downstream MCP server over stdio, reads its `tools/list`, and
   aggregates every tool (namespaced `${serverId}.${name}`) into one router, with
