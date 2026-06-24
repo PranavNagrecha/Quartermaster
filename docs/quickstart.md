@@ -8,11 +8,11 @@
 ## As a library
 
 ```bash
-npm install @quartermaster/core   # once published; until then build from source (above)
+npm install @pranavnpm/core   # once published; until then build from source (above)
 ```
 
 ```ts
-import { createRouter } from '@quartermaster/core';
+import { createRouter } from '@pranavnpm/core';
 
 const router = createRouter([
   { name: 'github.create_issue', description: 'Open a new issue in a repository' },

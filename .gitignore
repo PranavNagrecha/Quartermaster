@@ -12,3 +12,6 @@ bench/cases/synthetic-*.json
 # Local working docs — not part of the published repo
 BACKLOG.md
 NOTES.md
+
+# npm auth (never commit)
+.npmrc

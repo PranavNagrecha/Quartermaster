@@ -4,7 +4,7 @@ A drop-in MCP proxy that federates N downstream MCP servers behind one offline
 `retrieve_tools` function. **Status:** the MCP server + `retrieve_tools` tool are
 real and tested over a **static** manifest (P2-1); downstream federation
 (spawning servers, aggregating `tools/list`, forwarding calls) is in progress
-(P2-3/P2-4). The ranker is [`@quartermaster/core`](../core/).
+(P2-3/P2-4). The ranker is [`@pranavnpm/core`](../core/).
 
 ## Idea
 

@@ -17,7 +17,7 @@
   "author": "Pranav Nagrecha",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
-    "@quartermaster/core": "workspace:^"
+    "@pranavnpm/core": "workspace:^"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

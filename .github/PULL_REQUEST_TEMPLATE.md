@@ -7,7 +7,7 @@
 ## Checklist
 
 - [ ] `pnpm -r build && pnpm -r test` pass
-- [ ] Core stays **zero-dependency** (no new runtime deps in `@quartermaster/core`)
+- [ ] Core stays **zero-dependency** (no new runtime deps in `@pranavnpm/core`)
 - [ ] If this touches ranking, I ran `pnpm bench` and noted the recall@K impact below
 
 ## Recall@K impact (if ranking changed)

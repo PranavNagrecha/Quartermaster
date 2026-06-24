@@ -87,11 +87,11 @@ can get competitive tool routing with **no embedding model at all**.
 > command below uses the reserved package name.
 
 ```bash
-npm install @quartermaster/core
+npm install @pranavnpm/core
 ```
 
 ```ts
-import { createRouter } from '@quartermaster/core';
+import { createRouter } from '@pranavnpm/core';
 
 const router = createRouter([
   { name: 'github.create_issue', description: 'Open a new issue in a repository' },
@@ -147,7 +147,7 @@ tool through `call_tool`. See [`packages/proxy`](packages/proxy/).
 
 | Package | What it is |
 |---|---|
-| [`@quartermaster/core`](packages/core/) | The zero-dependency BM25/TF-IDF ranker. Framework-agnostic. |
+| [`@pranavnpm/core`](packages/core/) | The zero-dependency BM25/TF-IDF ranker. Framework-agnostic. |
 | [`quartermaster-mcp`](packages/proxy/) | Drop-in MCP proxy that federates downstream servers behind one `retrieve_tools`. |
 | [`.claude-plugin/`](.claude-plugin/) | Claude Code plugin manifest (plugs into the custom tool-search seam). |
 

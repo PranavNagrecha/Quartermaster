@@ -1,14 +1,14 @@
-# @quartermaster/core
+# @pranavnpm/core
 
 The offline, zero-dependency ranker behind [Quartermaster](../../README.md).
 No embedding model, no network, no runtime dependencies.
 
 ```bash
-npm install @quartermaster/core
+npm install @pranavnpm/core
 ```
 
 ```ts
-import { createRouter } from '@quartermaster/core';
+import { createRouter } from '@pranavnpm/core';
 
 const router = createRouter(tools, {
   ranker: 'bm25',          // 'bm25' (default) | 'tfidf'
