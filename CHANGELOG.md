@@ -49,6 +49,10 @@ All notable changes to this project are documented here. Format based on
   fast with a clear error), merged over the safe default environment. Unblocks
   token-gated downstream servers (GitHub/Slack). `interpolateEnv` exposed (pure);
   validated in `parseConfig`. +4 tests.
+- **Graceful partial failure (P2-15)** — a downstream server that fails to start
+  is now skipped with a stderr warning (listing which and why) and the proxy runs
+  degraded on the rest, instead of the whole proxy failing. Still fails loud only
+  if *every* server fails / zero tools result. +1 integration test (real spawn).
 - **Clean shutdown (P2-7)** — `closeIndex(index)` closes every downstream client
   (terminating their child processes), and the federated bin now closes them on
   SIGINT/SIGTERM — no leaked subprocesses. +2 tests.

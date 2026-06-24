@@ -96,8 +96,10 @@ async function connectDownstream(
 
 /**
  * Connect every configured downstream server, aggregate their tools, and build
- * the router over the union. Fails LOUD if no servers are configured or if the
- * connected servers expose zero tools (never returns an empty router silently).
+ * the router over the union. **Partial failure is non-fatal** (P2-15): a server
+ * that fails to start is skipped with a stderr warning and the proxy runs
+ * degraded on the rest. Fails LOUD only if no servers are configured, or if
+ * EVERY server failed / they collectively expose zero tools.
  */
 export async function buildToolIndex(config: ProxyConfig): Promise<FederatedIndex> {
   const servers = config.servers ?? [];
@@ -112,9 +114,16 @@ export async function buildToolIndex(config: ProxyConfig): Promise<FederatedInde
   const toolToBare = new Map<string, string>();
   const schemas = new Map<string, unknown>();
   const allTools: Tool[] = [];
+  const failures: string[] = [];
 
   for (const server of servers) {
-    const conn = await connectDownstream(server);
+    let conn;
+    try {
+      conn = await connectDownstream(server);
+    } catch (e) {
+      failures.push(`${server.id} (${(e as Error).message})`);
+      continue;
+    }
     clients.set(server.id, conn.client);
     for (const tool of conn.tools) {
       allTools.push(tool);
@@ -124,9 +133,15 @@ export async function buildToolIndex(config: ProxyConfig): Promise<FederatedInde
     for (const [name, schema] of conn.schemas) schemas.set(name, schema);
   }
 
+  if (failures.length > 0) {
+    console.error(
+      `quartermaster: ${failures.length} of ${servers.length} downstream server(s) failed to start and were skipped — ${failures.join('; ')}`,
+    );
+  }
+
   if (allTools.length === 0) {
     throw new Error(
-      'quartermaster: connected to downstream servers but aggregated ZERO tools — check that they answer tools/list.',
+      'quartermaster: no usable downstream tools — every configured server failed to start or exposed no tools/list.',
     );
   }
 
