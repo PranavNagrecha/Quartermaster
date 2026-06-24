@@ -41,6 +41,10 @@ export interface ProxyConfig {
   readonly synonyms?: Readonly<Record<string, readonly string[]>>;
   /** Optional per-tool keyword overlays (namespaced name → `{ keywords }`) to tune recall without touching downstream servers. */
   readonly overlays?: Readonly<Record<string, { readonly keywords?: string }>>;
+  /** Path to an external JSON synonyms map, resolved relative to the config file; merged under inline `synonyms`. */
+  readonly synonymsFile?: string;
+  /** Path to an external JSON overlays map, resolved relative to the config file; merged under inline `overlays`. */
+  readonly overlaysFile?: string;
   /** Shortlist size returned by retrieve_tools. Default 8. */
   readonly k?: number;
 }

@@ -4,6 +4,7 @@
  * what to fix, not throw a cryptic type error deep in the server.
  */
 import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 import type { DownstreamServer, ProxyConfig } from './index.js';
 import type { Tool } from '@quartermaster/core';
 
@@ -92,6 +93,14 @@ function validateK(v: unknown, src: string): number | undefined {
   return v;
 }
 
+function validateOptionalString(v: unknown, name: string, src: string): string | undefined {
+  if (v === undefined) return undefined;
+  if (typeof v !== 'string' || v.trim() === '') {
+    throw new Error(`quartermaster: ${src} "${name}" must be a non-empty string (a file path).`);
+  }
+  return v;
+}
+
 /** Validate an already-parsed config object. `source` is used in error messages. */
 export function parseConfig(text: string, source = '<config>'): ProxyConfig {
   let data: unknown;
@@ -114,6 +123,8 @@ export function parseConfig(text: string, source = '<config>'): ProxyConfig {
     servers,
     synonyms: validateSynonyms(data.synonyms, source),
     overlays: validateOverlays(data.overlays, source),
+    synonymsFile: validateOptionalString(data.synonymsFile, 'synonymsFile', source),
+    overlaysFile: validateOptionalString(data.overlaysFile, 'overlaysFile', source),
     k: validateK(data.k, source),
   };
 }
@@ -126,5 +137,34 @@ export function loadConfig(path: string): ProxyConfig {
   } catch {
     throw new Error(`quartermaster: cannot read config file: ${path}`);
   }
-  return parseConfig(raw, path);
+  const config = parseConfig(raw, path);
+  const dir = dirname(path);
+
+  const readJsonFile = (rel: string, label: string): unknown => {
+    const file = resolve(dir, rel);
+    let text: string;
+    try {
+      text = readFileSync(file, 'utf8');
+    } catch {
+      throw new Error(`quartermaster: cannot read ${label} file: ${file}`);
+    }
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      throw new Error(`quartermaster: ${label} file ${file} is not valid JSON — ${(e as Error).message}`);
+    }
+  };
+
+  // External files are the base; inline values override per key.
+  let synonyms = config.synonyms;
+  if (config.synonymsFile !== undefined) {
+    const ext = validateSynonyms(readJsonFile(config.synonymsFile, 'synonyms'), config.synonymsFile) ?? {};
+    synonyms = { ...ext, ...(config.synonyms ?? {}) };
+  }
+  let overlays = config.overlays;
+  if (config.overlaysFile !== undefined) {
+    const ext = validateOverlays(readJsonFile(config.overlaysFile, 'overlays'), config.overlaysFile) ?? {};
+    overlays = { ...ext, ...(config.overlays ?? {}) };
+  }
+  return { ...config, synonyms, overlays };
 }
