@@ -1,6 +1,24 @@
 import assert from 'node:assert/strict';
+import { dirname, join } from 'node:path';
 import { test } from 'node:test';
-import { parseConfig } from '../dist/index.js'; // built dist — see proxy.test.ts note
+import { fileURLToPath } from 'node:url';
+import { loadConfig, parseConfig } from '../dist/index.js'; // built dist — see proxy.test.ts note
+
+const HERE = dirname(fileURLToPath(import.meta.url));
+
+test('loadConfig merges external synonyms + overlays files (P1-10)', () => {
+  const cfg = loadConfig(join(HERE, 'fixtures', 'ext-synonyms', 'quartermaster.json'));
+  assert.deepEqual(cfg.synonyms?.bug, ['issue', 'defect']);
+  assert.deepEqual(cfg.synonyms?.folder, ['directory']);
+  assert.deepEqual(cfg.overlays?.['gh.create_issue'], { keywords: 'report filing' });
+});
+
+test('loadConfig fails clearly when a referenced synonyms file is missing', () => {
+  assert.throws(
+    () => loadConfig(join(HERE, 'fixtures', 'ext-missing', 'quartermaster.json')),
+    /cannot read synonyms file/,
+  );
+});
 
 test('parses a valid static-manifest config', () => {
   const cfg = parseConfig(

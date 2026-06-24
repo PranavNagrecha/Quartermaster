@@ -36,6 +36,10 @@ All notable changes to this project are documented here. Format based on
   so the host LLM knows when not to trust the result (nothing matched, or a
   near-tie). Uses a relative margin (BM25 scores are unbounded). Configurable via
   `marginThreshold` / `minTopScore`.
+- **External synonym / overlay files (P1-10)** — config `synonymsFile` /
+  `overlaysFile` point to external JSON (resolved relative to the config; inline
+  values override per key), so domain tuning lives in its own file. Ships a
+  starter pack `examples/synonyms/business-to-dev.json` (also seeds P3-9). +2 tests.
 - **Per-tool keyword overlays (P2-10)** — config `overlays: { "server.tool": { keywords } }`
   injects extra keywords into a tool's index entry so operators can tune recall
   (e.g. add "bug defect" to `create_issue`) without touching downstream servers.

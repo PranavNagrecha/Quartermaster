@@ -1,0 +1,17 @@
+{
+  "bug": ["issue", "ticket", "defect", "problem"],
+  "ticket": ["issue", "case"],
+  "pr": ["pull", "request", "review"],
+  "repo": ["repository", "codebase"],
+  "folder": ["directory"],
+  "dm": ["message", "direct", "chat"],
+  "note": ["message", "comment"],
+  "save": ["commit", "write", "store"],
+  "undo": ["reset", "revert"],
+  "history": ["log", "commits"],
+  "webpage": ["url", "page", "fetch"],
+  "download": ["fetch", "get"],
+  "make": ["create", "new", "add"],
+  "remove": ["delete"],
+  "rename": ["move", "update"]
+}

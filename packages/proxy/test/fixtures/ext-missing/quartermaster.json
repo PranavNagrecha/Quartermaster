@@ -1,0 +1,4 @@
+{
+  "tools": [{ "name": "gh.create_issue", "description": "Open a new issue" }],
+  "synonymsFile": "./does-not-exist.json"
+}
