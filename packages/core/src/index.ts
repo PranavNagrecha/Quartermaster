@@ -59,6 +59,8 @@ export interface RouterConfig {
   readonly k1?: number;
   /** BM25 length-normalization. Default 0.75. */
   readonly b?: number;
+  /** Weight of synonym-expanded query terms relative to originals (1.0). Default 0.5; `0` disables expansion. */
+  readonly expansionWeight?: number;
 }
 
 /** Filler words that carry no routing signal. Small on purpose so domain terms survive. */
@@ -93,16 +95,27 @@ export const tokenize = (text: string, stopwords: ReadonlySet<string> = DEFAULT_
   return out;
 };
 
-const expand = (
+/**
+ * Expand the query into a term→weight map. Original tokens get weight 1; each
+ * synonym of an original gets `expansionWeight` UNLESS it is itself an original
+ * (originals always win). A lower synonym weight lets expanded terms nudge the
+ * ranking toward the right tool without washing out exact-term matches — which
+ * the benchmark showed unweighted expansion does on rich corpora.
+ */
+const expandWeighted = (
   tokens: readonly string[],
   synonyms: Readonly<Record<string, readonly string[]>>,
-): string[] => {
-  const out: string[] = [...tokens];
-  for (const t of tokens) {
-    const syn = synonyms[t];
-    if (syn !== undefined) out.push(...syn);
+  expansionWeight: number,
+): Map<string, number> => {
+  const w = new Map<string, number>();
+  for (const t of tokens) w.set(t, 1);
+  if (expansionWeight > 0) {
+    for (const t of tokens) {
+      const syn = synonyms[t];
+      if (syn !== undefined) for (const s of syn) if (!w.has(s)) w.set(s, expansionWeight);
+    }
   }
-  return out;
+  return w;
 };
 
 /** Build the per-tool document corpus: name (weighted) + description + keyword overlay. */
@@ -132,6 +145,7 @@ export const createRouter = (tools: readonly Tool[], config: RouterConfig = {}) 
   const nameWeight = config.nameWeight ?? 2;
   const k1 = config.k1 ?? 1.5;
   const b = config.b ?? 0.75;
+  const expansionWeight = config.expansionWeight ?? 0.5;
 
   const records: DocRecord[] = [];
   const df = new Map<string, number>();
@@ -172,33 +186,30 @@ export const createRouter = (tools: readonly Tool[], config: RouterConfig = {}) 
   }
 
   const search = (query: string, k = 8): ToolCandidate[] => {
-    const qTokens = expand(tokenize(query, stopwords), synonyms);
-    if (qTokens.length === 0) return [];
+    const qw = expandWeighted(tokenize(query, stopwords), synonyms, expansionWeight);
+    if (qw.size === 0) return [];
 
     const scored: ToolCandidate[] = [];
 
     if (ranker === 'bm25') {
-      const qSet = new Set(qTokens);
       for (const rec of records) {
         const dl = rec.tokens.length;
         let score = 0;
-        for (const term of qSet) {
+        for (const [term, weight] of qw) {
           const f = rec.tf.get(term);
           if (f === undefined) continue;
           const idf = idfBm25(term);
-          score += idf * ((f * (k1 + 1)) / (f + k1 * (1 - b + b * (dl / (avgdl || 1)))));
+          score += weight * idf * ((f * (k1 + 1)) / (f + k1 * (1 - b + b * (dl / (avgdl || 1)))));
         }
         if (score > 0) {
           scored.push({ tool: rec.name, score: Math.round(score * 1000) / 1000, category: rec.category });
         }
       }
     } else {
-      const qtf = new Map<string, number>();
-      for (const t of qTokens) qtf.set(t, (qtf.get(t) ?? 0) + 1);
       const qvec = new Map<string, number>();
       let qnorm = 0;
-      for (const [term, f] of qtf) {
-        const w = (f / qTokens.length) * idfTfidf(term);
+      for (const [term, weight] of qw) {
+        const w = weight * idfTfidf(term);
         if (w > 0) { qvec.set(term, w); qnorm += w * w; }
       }
       qnorm = Math.sqrt(qnorm) || 1;
