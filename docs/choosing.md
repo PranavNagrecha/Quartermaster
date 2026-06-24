@@ -7,8 +7,8 @@ much you want to build yourself.
 
 - **Using an MCP client** (Claude Code, Cursor, Claude Desktop, Continue, Cline)
   with **several MCP servers** and the tool list is bloating context → use the
-  **`quartermaster-mcp` proxy**. Drop it in front; the client sees two tools
-  (`retrieve_tools` + `call_tool`) instead of hundreds. Offline, host-agnostic,
+  **`quartermaster-mcp` proxy**. Drop it in front; the client sees three meta-tools
+  (`retrieve_tools`, `call_tool`, `list_servers`) instead of hundreds. Offline, host-agnostic,
   self-contained (one npm package, no embedding model).
 - **On the Anthropic API specifically** and happy to be Anthropic-only → consider
   **Anthropic's native Tool Search** (server-side, `defer_loading`). It's first-

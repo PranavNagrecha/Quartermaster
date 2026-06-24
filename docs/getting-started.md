@@ -11,6 +11,8 @@ shortlist the AI can actually choose from.
 | **Curious / non-technical** | [`examples/static-demo/`](../examples/static-demo/) — run `demo.mjs`, read the output |
 | **Using Cursor or Claude Desktop** | [Cursor recipe](recipes/cursor.md) |
 | **Choosing vs Anthropic Tool Search** | [choosing.md](choosing.md) |
+| **Building your own agent (no proxy)** | [library-integration.md](library-integration.md) |
+| **Host matrix (Cursor, Desktop, …)** | [hosts.md](hosts.md) |
 | **Contributing / forking the repo** | [CONTRIBUTING.md](../CONTRIBUTING.md) |
 
 ## How it knows your tools

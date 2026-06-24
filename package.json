@@ -15,6 +15,7 @@
     "build": "pnpm -r build",
     "test": "pnpm -r test",
     "lint": "pnpm -r lint",
-    "bench": "node bench/generate.mjs && node bench/run.mjs"
+    "bench": "node bench/run.mjs",
+    "bench:regen": "node bench/generate.mjs && node bench/run.mjs"
   }
 }

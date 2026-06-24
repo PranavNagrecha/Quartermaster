@@ -5,8 +5,9 @@
 
 ## Run the proxy
 
-Put `quartermaster-mcp` in front of N MCP servers; the client loads two tools
-(`retrieve_tools` + `call_tool`) instead of every downstream schema. Write a
+Put `quartermaster-mcp` in front of N MCP servers; the client loads three meta-tools
+(`retrieve_tools`, `call_tool`, `list_servers`) instead of every downstream schema.
+Use `list_servers` to inspect connected downstreams and tool counts. Write a
 `quartermaster.json`:
 
 ```json

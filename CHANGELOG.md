@@ -5,6 +5,27 @@ All notable changes to this project are documented here. Format based on
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-06-24
+
+### Security
+- External `synonymsFile` / `overlaysFile` paths must stay within the config directory; `../` escape attempts are rejected at load time.
+- Added [`SECURITY.md`](SECURITY.md) — trust model, process spawn, env interpolation, and vulnerability reporting.
+
+### Added
+- **`ranker` config block** — expose BM25/TF-IDF tuning (`expansionWeight`, `marginThreshold`, `hintBoost`, etc.) in `quartermaster.json` via `buildRouterOptions`.
+- **Server-id hint boosting** (P1-12) — small additive boost when query tokens match tool `category` or server prefix.
+- **`refreshToolIndex` + `refreshIntervalMs`** — re-poll downstream `tools/list` without restart; `list_servers` reports `degraded` + `skipped`.
+- **Bench:** `pnpm bench` runs fixtures only; `pnpm bench:regen` regenerates synthetic corpora; token-reduction per fixture; `--ci` heritage R@1 gate in CI.
+- **CLI:** `--help`, `--version`, `--validate`; `QM_DEBUG=1` logs retrieve_tools scores to stderr.
+- **Docs:** [`docs/defer-loading.md`](docs/defer-loading.md), [`docs/hosts.md`](docs/hosts.md), [`docs/library-integration.md`](docs/library-integration.md).
+- **Example:** [`examples/github-jira-slack/`](examples/github-jira-slack/) with transcript.
+- **Claude plugin skill:** `.claude-plugin/skills/quartermaster-retrieve-tools/SKILL.md`.
+
+### Fixed
+- Docs now consistently describe **three** federated meta-tools (`retrieve_tools`, `call_tool`, `list_servers`).
+- Server ids containing `.` are rejected at parse time.
+- Static mode handles SIGINT/SIGTERM with clean exit.
+
 ## [0.1.2] - 2026-06-24
 
 ### Fixed

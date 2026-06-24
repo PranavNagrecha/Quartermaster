@@ -8,6 +8,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport, getDefaultEnvironment } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { createRouter, type Router, type Tool } from '@quartermaster/core';
 import type { DownstreamServer, ProxyConfig } from './index.js';
+import { buildRouterOptions } from './config.js';
 import { PACKAGE_VERSION } from './version.js';
 
 /**
@@ -61,9 +62,22 @@ export function applyOverlays(
   });
 }
 
+/** A downstream that failed to connect at boot. */
+export interface SkippedServer {
+  readonly id: string;
+  readonly reason: string;
+}
+
+/** Report from `refreshToolIndex`. */
+export interface RefreshReport {
+  readonly added: readonly string[];
+  readonly removed: readonly string[];
+  readonly errors: readonly string[];
+}
+
 /** The result of federating downstream servers: the router plus the maps needed to forward calls + manage lifecycle. */
 export interface FederatedIndex {
-  readonly router: Router;
+  router: Router;
   /** server id → connected client (for forwarding in P2-4 + shutdown in P2-7). */
   readonly clients: Map<string, Client>;
   /** namespaced tool name → owning server id (for call routing). */
@@ -72,6 +86,37 @@ export interface FederatedIndex {
   readonly toolToBare: Map<string, string>;
   /** namespaced tool name → JSON inputSchema (for schema hydration in retrieve_tools). */
   readonly schemas: Map<string, unknown>;
+  /** Servers configured but not connected at boot. */
+  readonly skippedServers: SkippedServer[];
+  /** Total servers in config (connected + skipped). */
+  readonly configuredServerCount: number;
+}
+
+function mergeServerTools(
+  serverId: string,
+  raw: ReadonlyArray<{ name: string; description?: string; inputSchema?: unknown }>,
+  allTools: Tool[],
+  toolToServer: Map<string, string>,
+  toolToBare: Map<string, string>,
+  schemas: Map<string, unknown>,
+): void {
+  for (const t of raw) {
+    const namespaced = `${serverId}.${t.name}`;
+    toolToBare.set(namespaced, t.name);
+    if (t.inputSchema !== undefined) schemas.set(namespaced, t.inputSchema);
+  }
+  for (const tool of namespaceTools(serverId, raw)) {
+    allTools.push(tool);
+    toolToServer.set(tool.name, serverId);
+  }
+}
+
+async function listServerTools(
+  client: Client,
+  serverId: string,
+): Promise<ReadonlyArray<{ name: string; description?: string; inputSchema?: unknown }>> {
+  const raw = (await client.listTools()).tools ?? [];
+  return raw.map((t) => ({ name: t.name, description: t.description, inputSchema: t.inputSchema }));
 }
 
 async function connectDownstream(
@@ -84,7 +129,7 @@ async function connectDownstream(
   });
   const client = new Client({ name: 'quartermaster-mcp', version: PACKAGE_VERSION }, { capabilities: {} });
   await client.connect(transport);
-  const raw = (await client.listTools()).tools ?? [];
+  const raw = await listServerTools(client, server.id);
   const schemas = new Map<string, unknown>();
   const bare = new Map<string, string>();
   for (const t of raw) {
@@ -115,14 +160,15 @@ export async function buildToolIndex(config: ProxyConfig): Promise<FederatedInde
   const toolToBare = new Map<string, string>();
   const schemas = new Map<string, unknown>();
   const allTools: Tool[] = [];
-  const failures: string[] = [];
+  const skippedServers: SkippedServer[] = [];
 
   for (const server of servers) {
     let conn;
     try {
       conn = await connectDownstream(server);
     } catch (e) {
-      failures.push(`${server.id} (${(e as Error).message})`);
+      const reason = (e as Error).message;
+      skippedServers.push({ id: server.id, reason });
       continue;
     }
     clients.set(server.id, conn.client);
@@ -134,9 +180,9 @@ export async function buildToolIndex(config: ProxyConfig): Promise<FederatedInde
     for (const [name, schema] of conn.schemas) schemas.set(name, schema);
   }
 
-  if (failures.length > 0) {
+  if (skippedServers.length > 0) {
     console.error(
-      `quartermaster: ${failures.length} of ${servers.length} downstream server(s) failed to start and were skipped — ${failures.join('; ')}`,
+      `quartermaster: ${skippedServers.length} of ${servers.length} downstream server(s) failed to start and were skipped — ${skippedServers.map((s) => `${s.id} (${s.reason})`).join('; ')}`,
     );
   }
 
@@ -146,6 +192,53 @@ export async function buildToolIndex(config: ProxyConfig): Promise<FederatedInde
     );
   }
 
-  const router = createRouter(applyOverlays(allTools, config.overlays), { synonyms: config.synonyms });
-  return { router, clients, toolToServer, toolToBare, schemas };
+  const router = createRouter(applyOverlays(allTools, config.overlays), buildRouterOptions(config));
+  return {
+    router,
+    clients,
+    toolToServer,
+    toolToBare,
+    schemas,
+    skippedServers,
+    configuredServerCount: servers.length,
+  };
+}
+
+/**
+ * Re-poll `tools/list` on connected downstreams and rebuild the router in place.
+ * Does not re-spawn servers. If refresh yields zero tools, the previous index is kept.
+ */
+export async function refreshToolIndex(index: FederatedIndex, config: ProxyConfig): Promise<RefreshReport> {
+  const previousTools = new Set(index.toolToServer.keys());
+  const allTools: Tool[] = [];
+  const toolToServer = new Map<string, string>();
+  const toolToBare = new Map<string, string>();
+  const schemas = new Map<string, unknown>();
+  const errors: string[] = [];
+
+  for (const [serverId, client] of index.clients) {
+    try {
+      const raw = await listServerTools(client, serverId);
+      mergeServerTools(serverId, raw, allTools, toolToServer, toolToBare, schemas);
+    } catch (e) {
+      errors.push(`${serverId}: ${(e as Error).message}`);
+    }
+  }
+
+  if (allTools.length === 0) {
+    return { added: [], removed: [], errors: [...errors, 'refresh kept previous index (zero tools from all servers)'] };
+  }
+
+  const added = [...toolToServer.keys()].filter((t) => !previousTools.has(t));
+  const removed = [...previousTools].filter((t) => !toolToServer.has(t));
+
+  index.toolToServer.clear();
+  for (const [k, v] of toolToServer) index.toolToServer.set(k, v);
+  index.toolToBare.clear();
+  for (const [k, v] of toolToBare) index.toolToBare.set(k, v);
+  index.schemas.clear();
+  for (const [k, v] of schemas) index.schemas.set(k, v);
+  index.router = createRouter(applyOverlays(allTools, config.overlays), buildRouterOptions(config));
+
+  return { added, removed, errors };
 }

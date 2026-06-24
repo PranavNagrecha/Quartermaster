@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { dirname, join } from 'node:path';
 import { after, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { buildToolIndex, forwardCall } from '../dist/index.js'; // built dist — see proxy.test.ts note
+import { buildToolIndex, forwardCall, refreshToolIndex } from '../dist/index.js'; // built dist — see proxy.test.ts note
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, 'fixtures', 'echo-mcp-server.mjs');
@@ -48,6 +48,13 @@ test('forwardCall on an unknown tool returns an isError result (no crash)', asyn
   assert.equal(res.isError, true);
 });
 
+test('refreshToolIndex re-polls tools/list without re-spawning', async () => {
+  const idx = await getIndex();
+  const report = await refreshToolIndex(idx, { servers: [{ id: 'echo', command: process.execPath, args: [FIXTURE] }] });
+  assert.equal(report.errors.length, 0);
+  assert.ok(idx.router.search('issue', 8).some((c) => c.tool === 'echo.create_issue'));
+});
+
 // P2-15: a downstream that fails to start is skipped, not fatal.
 test('a broken downstream is skipped; the proxy runs degraded on the rest', { timeout: 20000 }, async () => {
   const idx = await buildToolIndex({
@@ -59,6 +66,8 @@ test('a broken downstream is skipped; the proxy runs degraded on the rest', { ti
   try {
     assert.equal(idx.toolToServer.get('echo.create_issue'), 'echo'); // working server is present
     assert.equal(idx.clients.has('broken'), false); // broken one skipped
+    assert.equal(idx.skippedServers.length, 1);
+    assert.equal(idx.skippedServers[0]?.id, 'broken');
   } finally {
     for (const client of idx.clients.values()) {
       if (typeof client.close === 'function') await client.close().catch(() => {});

@@ -11,6 +11,7 @@
 //
 // Usage:  node bench/run.mjs            (all fixtures, or the built-in sample)
 //         node bench/run.mjs --json     (also write bench/results/<ts>.json)
+//         node bench/run.mjs --ci       (exit 1 if heritage bm25 R@1 regresses)
 import { readdirSync, readFileSync, mkdirSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -18,6 +19,9 @@ import { createRouter } from '../packages/core/dist/index.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const KS = [1, 3, 5, 8];
+const DEFAULT_K = 8;
+/** CI smoke gate: heritage-sfi bm25 recall@1 must stay above this floor. */
+const HERITAGE_BM25_R1_FLOOR = 0.55;
 
 /** A tiny built-in fixture so the harness runs before bench/cases/ is populated. */
 const SAMPLE = {
@@ -116,22 +120,43 @@ function scoreVariant(build, fixture) {
   };
 }
 
+/** Token proxy: chars/4 per tool doc; reduction = 1 - (k * avg) / (N * avg). */
+function tokenReduction(fixture, k = DEFAULT_K) {
+  const n = fixture.tools.length || 1;
+  const avgChars =
+    fixture.tools.reduce((sum, t) => sum + `${t.name} ${t.description ?? ''} ${t.keywords ?? ''}`.length, 0) / n;
+  const avgTokens = avgChars / 4;
+  return 1 - (k * avgTokens) / (n * avgTokens);
+}
+
 const pct = (x) => `${(x * 100).toFixed(1)}%`.padStart(7);
 
 function main() {
+  const ci = process.argv.includes('--ci');
   const fixtures = loadFixtures();
   const out = { generatedAt: new Date().toISOString(), fixtures: [] };
+  let heritageBm25R1;
 
   for (const fixture of fixtures) {
-    console.log(`### ${fixture.name}  (${fixture.tools.length} tools, ${fixture.cases.length} cases)`);
+    const tokRed = tokenReduction(fixture);
+    console.log(
+      `### ${fixture.name}  (${fixture.tools.length} tools, ${fixture.cases.length} cases, ~${(tokRed * 100).toFixed(0)}% token reduction @k=${DEFAULT_K})`,
+    );
     console.log(['variant'.padEnd(16), ...KS.map((k) => `R@${k}`.padStart(7)), 'MRR'.padStart(7)].join(' '));
     const rows = [];
     for (const v of VARIANTS) {
       const s = scoreVariant(v.build, fixture);
-      rows.push({ variant: v.id, ...s });
+      rows.push({ variant: v.id, ...s, tokenReduction: tokRed });
       console.log([v.id.padEnd(16), ...KS.map((k) => pct(s.recall[k])), pct(s.mrr)].join(' '));
+      if (fixture.name === 'heritage-sfi' && v.id === 'bm25') heritageBm25R1 = s.recall[1];
     }
-    out.fixtures.push({ name: fixture.name, tools: fixture.tools.length, cases: fixture.cases.length, rows });
+    out.fixtures.push({
+      name: fixture.name,
+      tools: fixture.tools.length,
+      cases: fixture.cases.length,
+      tokenReduction: tokRed,
+      rows,
+    });
     console.log('');
   }
 
@@ -141,6 +166,20 @@ function main() {
     const file = join(dir, `${out.generatedAt.replace(/[:.]/g, '-')}.json`);
     writeFileSync(file, JSON.stringify(out, null, 2));
     console.log(`wrote ${file}`);
+  }
+
+  if (ci) {
+    if (heritageBm25R1 === undefined) {
+      console.error('bench --ci: heritage-sfi fixture not found');
+      process.exitCode = 1;
+      return;
+    }
+    if (heritageBm25R1 < HERITAGE_BM25_R1_FLOOR) {
+      console.error(
+        `bench --ci: heritage-sfi bm25 R@1 ${(heritageBm25R1 * 100).toFixed(1)}% below floor ${(HERITAGE_BM25_R1_FLOOR * 100).toFixed(0)}%`,
+      );
+      process.exitCode = 1;
+    }
   }
 }
 

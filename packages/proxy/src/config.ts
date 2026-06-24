@@ -4,9 +4,9 @@
  * what to fix, not throw a cryptic type error deep in the server.
  */
 import { readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
-import type { DownstreamServer, ProxyConfig } from './index.js';
-import type { Tool } from '@quartermaster/core';
+import { dirname, relative, resolve } from 'node:path';
+import type { DownstreamServer, ProxyConfig, ProxyRankerConfig } from './index.js';
+import type { RouterConfig, Tool } from '@quartermaster/core';
 
 const isObject = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -40,6 +40,11 @@ function validateServers(v: unknown, src: string): DownstreamServer[] {
     if (!isObject(s)) throw new Error(`quartermaster: ${src} servers[${i}] must be an object.`);
     if (typeof s.id !== 'string' || s.id.trim() === '') {
       throw new Error(`quartermaster: ${src} servers[${i}] is missing a non-empty string "id".`);
+    }
+    if (s.id.includes('.')) {
+      throw new Error(
+        `quartermaster: ${src} servers[${i}] ("${s.id}") id must not contain '.' — it namespaces tool names as server.tool.`,
+      );
     }
     if (typeof s.command !== 'string' || s.command.trim() === '') {
       throw new Error(`quartermaster: ${src} servers[${i}] ("${s.id}") is missing a non-empty string "command".`);
@@ -102,6 +107,92 @@ function validateK(v: unknown, src: string): number | undefined {
   return v;
 }
 
+const RANKER_KEYS = new Set([
+  'ranker',
+  'nameWeight',
+  'k1',
+  'b',
+  'expansionWeight',
+  'marginThreshold',
+  'minTopScore',
+  'hintBoost',
+]);
+
+function validateRanker(v: unknown, src: string): ProxyRankerConfig | undefined {
+  if (v === undefined) return undefined;
+  if (!isObject(v)) throw new Error(`quartermaster: ${src} "ranker" must be an object.`);
+  for (const key of Object.keys(v)) {
+    if (!RANKER_KEYS.has(key)) {
+      throw new Error(`quartermaster: ${src} ranker has unknown key "${key}".`);
+    }
+  }
+  const ranker = v.ranker;
+  if (ranker !== undefined && ranker !== 'bm25' && ranker !== 'tfidf') {
+    throw new Error(`quartermaster: ${src} ranker.ranker must be "bm25" or "tfidf".`);
+  }
+  const posNum = (val: unknown, key: string): number | undefined => {
+    if (val === undefined) return undefined;
+    if (typeof val !== 'number' || !Number.isFinite(val) || val < 0) {
+      throw new Error(`quartermaster: ${src} ranker.${key} must be a non-negative number.`);
+    }
+    return val;
+  };
+  const exp = v.expansionWeight;
+  if (exp !== undefined && (typeof exp !== 'number' || !Number.isFinite(exp) || exp < 0 || exp > 1)) {
+    throw new Error(`quartermaster: ${src} ranker.expansionWeight must be a number in [0, 1].`);
+  }
+  const margin = v.marginThreshold;
+  if (margin !== undefined && (typeof margin !== 'number' || !Number.isFinite(margin) || margin < 0 || margin > 1)) {
+    throw new Error(`quartermaster: ${src} ranker.marginThreshold must be a number in [0, 1].`);
+  }
+  return {
+    ranker: ranker as 'bm25' | 'tfidf' | undefined,
+    nameWeight: posNum(v.nameWeight, 'nameWeight'),
+    k1: posNum(v.k1, 'k1'),
+    b: posNum(v.b, 'b'),
+    expansionWeight: exp as number | undefined,
+    marginThreshold: margin as number | undefined,
+    minTopScore: posNum(v.minTopScore, 'minTopScore'),
+    hintBoost: posNum(v.hintBoost, 'hintBoost'),
+  };
+}
+
+function validateRefreshInterval(v: unknown, src: string): number | undefined {
+  if (v === undefined) return undefined;
+  if (typeof v !== 'number' || !Number.isFinite(v) || v < 1000) {
+    throw new Error(`quartermaster: ${src} "refreshIntervalMs" must be a number >= 1000.`);
+  }
+  return v;
+}
+
+/** Merge proxy config into core `RouterConfig` (synonyms at top level + optional ranker block). */
+export function buildRouterOptions(config: ProxyConfig): RouterConfig {
+  const r = config.ranker ?? {};
+  return {
+    ranker: r.ranker,
+    synonyms: config.synonyms,
+    nameWeight: r.nameWeight,
+    k1: r.k1,
+    b: r.b,
+    expansionWeight: r.expansionWeight,
+    marginThreshold: r.marginThreshold,
+    minTopScore: r.minTopScore,
+    hintBoost: r.hintBoost,
+  };
+}
+
+/** Reject paths that escape the config directory via `..` or absolute paths. */
+export function assertWithinConfigDir(configDir: string, resolvedPath: string): void {
+  const base = resolve(configDir);
+  const target = resolve(resolvedPath);
+  const rel = relative(base, target);
+  if (rel.startsWith('..') || resolve(base, rel) !== target) {
+    throw new Error(
+      `quartermaster: external file path must stay within the config directory (${base}) — got "${resolvedPath}".`,
+    );
+  }
+}
+
 function validateOptionalString(v: unknown, name: string, src: string): string | undefined {
   if (v === undefined) return undefined;
   if (typeof v !== 'string' || v.trim() === '') {
@@ -135,6 +226,8 @@ export function parseConfig(text: string, source = '<config>'): ProxyConfig {
     synonymsFile: validateOptionalString(data.synonymsFile, 'synonymsFile', source),
     overlaysFile: validateOptionalString(data.overlaysFile, 'overlaysFile', source),
     k: validateK(data.k, source),
+    ranker: validateRanker(data.ranker, source),
+    refreshIntervalMs: validateRefreshInterval(data.refreshIntervalMs, source),
   };
 }
 
@@ -151,6 +244,7 @@ export function loadConfig(path: string): ProxyConfig {
 
   const readJsonFile = (rel: string, label: string): unknown => {
     const file = resolve(dir, rel);
+    assertWithinConfigDir(dir, file);
     let text: string;
     try {
       text = readFileSync(file, 'utf8');

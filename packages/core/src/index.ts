@@ -85,6 +85,8 @@ export interface RouterConfig {
   readonly marginThreshold?: number;
   /** `route()` flags `none` when the top score is below this absolute floor. Default 0 (disabled). */
   readonly minTopScore?: number;
+  /** Additive boost when a query token matches the tool's `category` or server prefix. Default 0.1; set 0 to disable. */
+  readonly hintBoost?: number;
 }
 
 /** Filler words that carry no routing signal. Small on purpose so domain terms survive. */
@@ -142,6 +144,23 @@ const expandWeighted = (
   return w;
 };
 
+/** Server prefix from a namespaced tool name (`github.create_issue` → `github`). */
+const serverPrefix = (toolName: string): string | null => {
+  const dot = toolName.indexOf('.');
+  return dot > 0 ? toolName.slice(0, dot).toLowerCase() : null;
+};
+
+/** Additive hint when query tokens match category or server prefix. */
+const categoryHint = (rec: DocRecord, qw: ReadonlyMap<string, number>, boost: number): number => {
+  if (boost <= 0) return 0;
+  for (const term of qw.keys()) {
+    if (rec.category?.toLowerCase() === term) return boost;
+    const prefix = serverPrefix(rec.name);
+    if (prefix === term) return boost;
+  }
+  return 0;
+};
+
 /** Build the per-tool document corpus: name (weighted) + description + keyword overlay. */
 const buildDoc = (tool: Tool, nameWeight: number): string => {
   const nameWords = tool.name.replace(/_/g, ' ').replace(/\./g, ' ');
@@ -175,6 +194,7 @@ export const createRouter = (tools: readonly Tool[], config: RouterConfig = {}) 
   const b = config.b ?? 0.75;
   const marginThreshold = config.marginThreshold ?? 0.15;
   const minTopScore = config.minTopScore ?? 0;
+  const hintBoost = config.hintBoost ?? 0.1;
 
   const records: DocRecord[] = [];
   const df = new Map<string, number>();
@@ -255,6 +275,7 @@ export const createRouter = (tools: readonly Tool[], config: RouterConfig = {}) 
           score += c;
           if (matches) matches.push({ term, contribution: r3(c) });
         }
+        score += categoryHint(rec, qw, hintBoost);
         push(rec, score, matches);
       }
     } else {
@@ -277,7 +298,8 @@ export const createRouter = (tools: readonly Tool[], config: RouterConfig = {}) 
           dot += w * o;
           if (matches) matches.push({ term, contribution: r3((w * o) / qnorm) });
         }
-        push(rec, dot / qnorm, matches);
+        const score = dot / qnorm + categoryHint(rec, qw, hintBoost);
+        push(rec, score, matches);
       }
     }
 

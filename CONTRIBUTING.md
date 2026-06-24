@@ -23,8 +23,7 @@ pnpm -r test
 ## Before you open a PR
 
 - `pnpm -r build && pnpm -r test` pass.
-- If you touched ranking, run `pnpm bench` and put the recall@K before→after in
-  the PR. We don't merge ranking changes on vibes.
+- If you touched ranking, run `pnpm bench` (or `pnpm bench:regen` to rewrite synthetic fixtures) and put recall@K before→after in the PR.
 - Keep new public API documented in the package README.
 
 ## Where things are
@@ -39,8 +38,18 @@ pnpm -r test
 
 ## Good first issues
 
-- **P1-6** API-docs pass — JSDoc on every export; keep the package READMEs in sync.
-- **P3-1** a Claude Code plugin skill that drives the proxy's `retrieve_tools`.
-- **P3-2** document Anthropic's `defer_loading` / `tool_reference` integration path.
-- **P2-13** opt-in debug logging (`QM_DEBUG=1` → stderr: query / top-K / matched server).
-- An `examples/static-demo/` a non-technical reader can run to see the funnel work.
+- **P3-6** Plugin marketplace submission — validate install flow end-to-end.
+- Enable GitHub Discussions on the repo (Settings → General → Features).
+
+Completed recently: API-docs pass, Claude plugin skill, `defer_loading` doc,
+`QM_DEBUG`, CLI `--help`/`--version`/`--validate`, bench CI smoke, ranker config
+in JSON, tools/list refresh.
+
+## Publish dry-run
+
+Maintainers can verify the npm tarball without publishing:
+
+```bash
+pnpm -r build
+cd packages/proxy && pnpm publish --dry-run
+```

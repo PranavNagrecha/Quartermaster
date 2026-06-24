@@ -54,6 +54,25 @@ launch; an unset var fails fast:
 }
 ```
 
+Optional ranker tuning (`ranker` block):
+
+```json
+{
+  "ranker": {
+    "ranker": "bm25",
+    "expansionWeight": 0.5,
+    "marginThreshold": 0.15,
+    "hintBoost": 0.1
+  }
+}
+```
+
+Federated deployments can re-poll downstream manifests:
+
+```json
+{ "refreshIntervalMs": 300000 }
+```
+
 Exposes `retrieve_tools`, `call_tool`, and `list_servers`.
 
 ### Static (discovery only)
@@ -85,3 +104,7 @@ From a source checkout (after `pnpm -r build`):
 ```bash
 node packages/proxy/bin/quartermaster-mcp.js --config ./quartermaster.json
 ```
+
+## Security
+
+See [SECURITY.md](../../SECURITY.md) for the trust model and vulnerability reporting.

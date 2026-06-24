@@ -1,6 +1,6 @@
 {
   "name": "quartermaster-mcp",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Offline, zero-config MCP proxy: federate N downstream servers behind one ranked retrieve_tools. Self-contained — no embedding model, no network.",
   "type": "module",
   "bin": {

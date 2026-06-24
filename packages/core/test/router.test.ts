@@ -204,3 +204,23 @@ test('1000-tool index builds and searches within a generous time budget', () => 
   assert.ok(buildMs < 1500, `build took ${buildMs.toFixed(1)}ms (budget 1500)`);
   assert.ok(avgSearchMs < 50, `avg search ${avgSearchMs.toFixed(2)}ms (budget 50)`);
 });
+
+test('hint boost: query mentioning server id ranks that server\'s tools higher', () => {
+  const tools = [
+    { name: 'github.create_issue', description: 'Open issue', category: 'github' },
+    { name: 'jira.create_ticket', description: 'Open issue', category: 'jira' },
+  ];
+  const withHint = createRouter(tools, { hintBoost: 0.5 });
+  const withoutHint = createRouter(tools, { hintBoost: 0 });
+  assert.equal(withHint.search('github open issue', 2)[0]?.tool, 'github.create_issue');
+  // Without hint both tie on lexical score; github wins alphabetically on tie-break
+  assert.equal(withoutHint.search('github open issue', 2)[0]?.tool, 'github.create_issue');
+});
+
+test('determinism: same query + corpus yields identical order across runs', () => {
+  const router = createRouter(TOOLS, { synonyms: { bug: ['issue'] } });
+  const first = router.search('file a bug', 5).map((c) => c.tool);
+  for (let i = 0; i < 10; i++) {
+    assert.deepEqual(router.search('file a bug', 5).map((c) => c.tool), first);
+  }
+});

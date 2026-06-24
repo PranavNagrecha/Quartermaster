@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { loadConfig, parseConfig } from '../dist/index.js'; // built dist — see proxy.test.ts note
+import { assertWithinConfigDir, buildRouterOptions, loadConfig, parseConfig } from '../dist/index.js'; // built dist — see proxy.test.ts note
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -11,6 +11,18 @@ test('loadConfig merges external synonyms + overlays files (P1-10)', () => {
   assert.deepEqual(cfg.synonyms?.bug, ['issue', 'defect']);
   assert.deepEqual(cfg.synonyms?.folder, ['directory']);
   assert.deepEqual(cfg.overlays?.['gh.create_issue'], { keywords: 'report filing' });
+});
+
+test('loadConfig rejects synonymsFile paths that escape the config directory', () => {
+  assert.throws(
+    () => loadConfig(join(HERE, 'fixtures', 'ext-traversal', 'quartermaster.json')),
+    /must stay within the config directory/,
+  );
+});
+
+test('assertWithinConfigDir allows paths under the config directory', () => {
+  const dir = join(HERE, 'fixtures', 'ext-synonyms');
+  assert.doesNotThrow(() => assertWithinConfigDir(dir, join(dir, 'synonyms.json')));
 });
 
 test('loadConfig fails clearly when a referenced synonyms file is missing', () => {
@@ -91,4 +103,34 @@ test('rejects malformed overlays', () => {
 
 test('rejects malformed synonyms', () => {
   assert.throws(() => parseConfig(JSON.stringify({ tools: [{ name: 'a' }], synonyms: { bug: 'issue' } })), /synonyms\["bug"\] must be an array/);
+});
+
+test('rejects server id containing a dot', () => {
+  assert.throws(
+    () => parseConfig(JSON.stringify({ servers: [{ id: 'a.b', command: 'npx' }] })),
+    /id must not contain '\.'/,
+  );
+});
+
+test('parses ranker block and buildRouterOptions merges synonyms', () => {
+  const cfg = parseConfig(
+    JSON.stringify({
+      tools: [{ name: 'a' }],
+      synonyms: { bug: ['issue'] },
+      ranker: { ranker: 'tfidf', expansionWeight: 0, marginThreshold: 0.2 },
+    }),
+  );
+  assert.equal(cfg.ranker?.ranker, 'tfidf');
+  assert.equal(cfg.ranker?.expansionWeight, 0);
+  const opts = buildRouterOptions(cfg);
+  assert.equal(opts.ranker, 'tfidf');
+  assert.equal(opts.expansionWeight, 0);
+  assert.deepEqual(opts.synonyms, { bug: ['issue'] });
+});
+
+test('rejects unknown ranker keys', () => {
+  assert.throws(
+    () => parseConfig(JSON.stringify({ tools: [{ name: 'a' }], ranker: { foo: 1 } })),
+    /unknown key "foo"/,
+  );
 });

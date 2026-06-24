@@ -1,0 +1,26 @@
+{
+  "servers": [
+    {
+      "id": "github",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": { "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}" }
+    },
+    {
+      "id": "slack",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-slack"],
+      "env": { "SLACK_BOT_TOKEN": "${SLACK_TOKEN}" }
+    }
+  ],
+  "synonyms": {
+    "bug": ["issue", "defect"],
+    "pr": ["pull", "request"],
+    "dm": ["message", "channel"]
+  },
+  "ranker": {
+    "expansionWeight": 0.5,
+    "hintBoost": 0.1
+  },
+  "k": 8
+}

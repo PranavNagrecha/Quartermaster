@@ -6,5 +6,9 @@
     { "name": "calendar.create_event", "description": "Add an event to the calendar" }
   ],
   "synonyms": { "bug": ["issue"], "dm": ["message"], "meeting": ["event"] },
-  "k": 5
+  "k": 5,
+  "ranker": {
+    "expansionWeight": 0.5,
+    "marginThreshold": 0.15
+  }
 }

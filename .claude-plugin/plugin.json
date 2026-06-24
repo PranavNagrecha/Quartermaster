@@ -1,7 +1,7 @@
 {
   "name": "quartermaster",
   "description": "Offline, zero-dependency tool-router for MCP. Funnels many tools down to a ranked shortlist for a natural-language query — no embedding model, no network — so the model reads ~8 tools instead of 200. Funnel advises, model decides.",
-  "version": "0.1.0",
+  "version": "0.1.3",
   "author": {
     "name": "Pranav Nagrecha",
     "url": "https://github.com/PranavNagrecha"

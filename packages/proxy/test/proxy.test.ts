@@ -3,7 +3,7 @@ import { test } from 'node:test';
 // Import the built dist (the package as consumed): index re-exports across files
 // with NodeNext `.js` specifiers, which raw type-stripping of src can't resolve.
 // CI builds before testing; the loop's local flow does too.
-import { buildStaticRouter, closeIndex, createServer, createServerFromIndex, forwardCall, resolveCall, retrieveTools, serverSummary } from '../dist/index.js';
+import { buildStaticRouter, closeIndex, createServer, createServerFromIndex, forwardCall, listServersPayload, resolveCall, retrieveTools, serverSummary } from '../dist/index.js';
 
 /** A minimal fake FederatedIndex (no real downstream — exercises routing only). */
 function fakeIndex() {
@@ -13,6 +13,8 @@ function fakeIndex() {
     toolToServer: new Map([['github.create_issue', 'github']]),
     toolToBare: new Map([['github.create_issue', 'create_issue']]),
     schemas: new Map([['github.create_issue', { type: 'object' }]]),
+    skippedServers: [],
+    configuredServerCount: 1,
   };
 }
 
@@ -90,6 +92,8 @@ test('resolveCall returns the indexed bare name verbatim (handles dotted names)'
     toolToServer: new Map([['srv.weird.tool.name', 'srv']]),
     toolToBare: new Map([['srv.weird.tool.name', 'weird.tool.name']]),
     schemas: new Map(),
+    skippedServers: [],
+    configuredServerCount: 1,
   };
   assert.equal(resolveCall(idx, 'srv.weird.tool.name').bareName, 'weird.tool.name');
 });
@@ -100,6 +104,16 @@ test('createServerFromIndex builds a federated server without throwing', () => {
 
 test('serverSummary reports connected servers with tool counts (P2-16)', () => {
   assert.deepEqual(serverSummary(fakeIndex()), [{ id: 'github', toolCount: 1 }]);
+});
+
+test('listServersPayload reports degraded when servers were skipped at boot', () => {
+  const idx = fakeIndex();
+  idx.skippedServers.push({ id: 'jira', reason: 'connection refused' });
+  idx.configuredServerCount = 2;
+  const payload = listServersPayload(idx);
+  assert.equal(payload.degraded, true);
+  assert.equal(payload.skipped.length, 1);
+  assert.equal(payload.totalTools, 1);
 });
 
 // Forwarding hardening (P2-4): failures come back as isError results, never thrown.

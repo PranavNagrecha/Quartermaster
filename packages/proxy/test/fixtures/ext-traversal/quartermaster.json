@@ -1,0 +1,4 @@
+{
+  "tools": [{ "name": "a.b" }],
+  "synonymsFile": "../../../package.json"
+}

@@ -1,7 +1,7 @@
 # Benchmarks
 
 > **Real numbers, reproducible.** Everything below is produced by `pnpm bench`
-> (deterministic — seeded synthetic fixtures + the committed heritage corpus).
+> (committed corpora; use `pnpm bench:regen` to rewrite synthetic fixtures).
 > We publish whatever it says, including losses. Re-run to reproduce.
 
 ## What we measure

@@ -9,7 +9,7 @@
       "name": "quartermaster",
       "source": "./",
       "description": "Offline, zero-dependency tool-router for MCP — funnel many tools down to a ranked shortlist; the model decides.",
-      "version": "0.1.0"
+      "version": "0.1.3"
     }
   ]
 }

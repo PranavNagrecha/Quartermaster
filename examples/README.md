@@ -15,8 +15,6 @@ the funnel work.
   synonym overlay (`bug`→`issue`, `folder`→`directory`, …) for `synonymsFile`.
 
 Reproduce the published benchmark numbers: [`docs/benchmarks.md`](../docs/benchmarks.md)
-(`pnpm bench` from the repo root).
+(`pnpm bench` from the repo root; `pnpm bench:regen` to rewrite synthetic fixtures).
 
-## Planned
-
-- `github-jira-slack/` — a multi-server transcript of queries → shortlists.
+- [`github-jira-slack/`](github-jira-slack/) — multi-server config + query → shortlist transcript.

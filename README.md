@@ -2,6 +2,8 @@
 
 # 🧭 Quartermaster
 
+[![CI](https://github.com/PranavNagrecha/quartermaster/actions/workflows/ci.yml/badge.svg)](https://github.com/PranavNagrecha/quartermaster/actions/workflows/ci.yml)
+
 **Issues your agent exactly the tools the mission needs — nothing more.**
 
 An offline, zero-dependency tool-router for MCP. It funnels *N* tools down to a
@@ -110,8 +112,8 @@ tool through `call_tool`. See [`packages/proxy`](packages/proxy/).
 ## What ships
 
 One package — **[`quartermaster-mcp`](packages/proxy/)** — the drop-in MCP proxy
-that federates downstream servers behind one `retrieve_tools` + `call_tool`. The
-zero-dependency BM25/TF-IDF ranker that powers it lives in
+that federates downstream servers behind `retrieve_tools`, `call_tool`, and
+`list_servers`. The zero-dependency BM25/TF-IDF ranker that powers it lives in
 [`packages/core`](packages/core/) and is **bundled into the proxy**; it is not
 published separately, so the proxy installs self-contained (its only runtime
 dependency is the MCP SDK). A [`.claude-plugin/`](.claude-plugin/) manifest is
@@ -128,3 +130,8 @@ ranker from TF-IDF cosine to BM25.
 ## License
 
 MIT © 2026 Pranav Nagrecha. See [LICENSE](LICENSE).
+
+## Security
+
+See [SECURITY.md](SECURITY.md) for the trust model, config safety, and how to
+report vulnerabilities.
