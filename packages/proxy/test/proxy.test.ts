@@ -3,7 +3,7 @@ import { test } from 'node:test';
 // Import the built dist (the package as consumed): index re-exports across files
 // with NodeNext `.js` specifiers, which raw type-stripping of src can't resolve.
 // CI builds before testing; the loop's local flow does too.
-import { buildStaticRouter, closeIndex, createServer, createServerFromIndex, forwardCall, resolveCall, retrieveTools } from '../dist/index.js';
+import { buildStaticRouter, closeIndex, createServer, createServerFromIndex, forwardCall, resolveCall, retrieveTools, serverSummary } from '../dist/index.js';
 
 /** A minimal fake FederatedIndex (no real downstream — exercises routing only). */
 function fakeIndex() {
@@ -96,6 +96,10 @@ test('resolveCall returns the indexed bare name verbatim (handles dotted names)'
 
 test('createServerFromIndex builds a federated server without throwing', () => {
   assert.doesNotThrow(() => createServerFromIndex(fakeIndex()));
+});
+
+test('serverSummary reports connected servers with tool counts (P2-16)', () => {
+  assert.deepEqual(serverSummary(fakeIndex()), [{ id: 'github', toolCount: 1 }]);
 });
 
 // Forwarding hardening (P2-4): failures come back as isError results, never thrown.

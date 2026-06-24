@@ -137,6 +137,16 @@ export function resolveCall(index: FederatedIndex, toolName: string): { client: 
   return { client, bareName };
 }
 
+/** Per-server summary (connected id + tool count) for the `list_servers` meta-tool. Pure. */
+export function serverSummary(index: FederatedIndex): { id: string; toolCount: number }[] {
+  const counts = new Map<string, number>();
+  for (const id of index.clients.keys()) counts.set(id, 0);
+  for (const id of index.toolToServer.values()) counts.set(id, (counts.get(id) ?? 0) + 1);
+  return [...counts.entries()]
+    .map(([id, toolCount]) => ({ id, toolCount }))
+    .sort((a, b) => a.id.localeCompare(b.id));
+}
+
 /** An MCP tool-error result — the host sees a recoverable tool error, not a thrown protocol error. */
 function errorResult(message: string) {
   return { content: [{ type: 'text' as const, text: `quartermaster: ${message}` }], isError: true };
@@ -203,6 +213,12 @@ export function createServerFromIndex(index: FederatedIndex, opts: { k?: number 
           required: ['name'],
         },
       },
+      {
+        name: 'list_servers',
+        description:
+          'List the connected downstream MCP servers and how many tools each contributes — for debugging routing. Takes no arguments.',
+        inputSchema: { type: 'object', properties: {} },
+      },
     ],
   }));
 
@@ -225,6 +241,10 @@ export function createServerFromIndex(index: FederatedIndex, opts: { k?: number 
       }
       const toolArgs = (args as Record<string, unknown>).arguments;
       return forwardCall(index, toolName, (toolArgs ?? {}) as Record<string, unknown>);
+    }
+    if (req.params.name === 'list_servers') {
+      const payload = { servers: serverSummary(index), totalTools: index.toolToServer.size };
+      return { content: [{ type: 'text' as const, text: JSON.stringify(payload, null, 2) }] };
     }
     return errorResult(`unknown tool: ${req.params.name}`);
   });
