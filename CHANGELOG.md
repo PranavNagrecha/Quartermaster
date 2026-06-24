@@ -9,8 +9,9 @@ All notable changes to this project are documented here. Format based on
 - `@quartermaster/core` — offline, zero-dependency tool ranker (BM25 default,
   TF-IDF cosine alternative) with configurable synonym query-expansion. Extracted
   and generalized from sf-intelligence's semantic funnel.
-- `quartermaster-mcp` — drop-in MCP proxy scaffold exposing a single
-  `retrieve_tools` over N downstream servers.
+- `quartermaster-mcp` — drop-in MCP proxy: federates N downstream MCP servers
+  behind `retrieve_tools` (ranked, schema-hydrated shortlist) + `call_tool`
+  (forwards to the right downstream); runnable via `--config`.
 - Claude Code plugin manifest + marketplace listing.
 - `bench/` recall@K + MRR harness (`bench/run.mjs`): runs BM25 / BM25+expansion /
   TF-IDF over fixture manifests, reports recall@1/3/5/8 and MRR, optional JSON output.
@@ -92,6 +93,11 @@ All notable changes to this project are documented here. Format based on
 
 ### Changed
 
+- **Docs sync (P2-17)** — root README, the proxy package README, and the
+  `index.ts` header no longer call the proxy "scaffolded" (it's built + runnable):
+  real proxy quick-start (config + `quartermaster-mcp --config`) and a `route()` /
+  `expansionWeight` note in the library quick-start. Static `createServer` handler
+  now returns `isError` results (matching the federated path) instead of throwing.
 - **Weighted synonym expansion** (`expansionWeight`, default `0.5`, `0` disables):
   synonym-expanded query terms now contribute less than originals, so expansion
   nudges ranking without washing out exact-term matches. Recovers the heritage
