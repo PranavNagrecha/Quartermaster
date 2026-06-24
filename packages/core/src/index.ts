@@ -50,6 +50,8 @@ export interface ToolCandidate {
   readonly score: number;
   /** The tool's `category`, or `null`. */
   readonly category: string | null;
+  /** The tool's description — present only when search is called with `{ includeDescription: true }`, so the host LLM can choose from more than the name. */
+  readonly description?: string;
   /** Per-term score breakdown (desc by contribution) — present only when search is called with `{ explain: true }`. */
   readonly matches?: readonly TermMatch[];
 }
@@ -136,6 +138,7 @@ const buildDoc = (tool: Tool, nameWeight: number): string => {
 interface DocRecord {
   readonly name: string;
   readonly category: string | null;
+  readonly description?: string;
   readonly tokens: string[];
   readonly tf: Map<string, number>;
   /** Unit-normalized TF-IDF vector; populated only when ranker === 'tfidf'. */
@@ -164,7 +167,7 @@ export const createRouter = (tools: readonly Tool[], config: RouterConfig = {}) 
     const tf = new Map<string, number>();
     for (const t of tokens) tf.set(t, (tf.get(t) ?? 0) + 1);
     for (const term of tf.keys()) df.set(term, (df.get(term) ?? 0) + 1);
-    records.push({ name: tool.name, category: tool.category ?? null, tokens, tf });
+    records.push({ name: tool.name, category: tool.category ?? null, description: tool.description, tokens, tf });
     totalLen += tokens.length;
   }
 
@@ -193,20 +196,24 @@ export const createRouter = (tools: readonly Tool[], config: RouterConfig = {}) 
     }
   }
 
-  const search = (query: string, k = 8, opts: { explain?: boolean } = {}): ToolCandidate[] => {
+  const search = (
+    query: string,
+    k = 8,
+    opts: { explain?: boolean; includeDescription?: boolean } = {},
+  ): ToolCandidate[] => {
     const explain = opts.explain ?? false;
+    const includeDescription = opts.includeDescription ?? false;
     const qw = expandWeighted(tokenize(query, stopwords), synonyms, expansionWeight);
     if (qw.size === 0) return [];
 
     const scored: ToolCandidate[] = [];
     const r3 = (x: number): number => Math.round(x * 1000) / 1000;
-    const push = (name: string, category: string | null, score: number, matches?: TermMatch[]): void => {
+    const push = (rec: DocRecord, score: number, matches?: TermMatch[]): void => {
       if (score <= 0) return;
-      scored.push(
-        matches
-          ? { tool: name, score: r3(score), category, matches: matches.sort((a, b) => b.contribution - a.contribution) }
-          : { tool: name, score: r3(score), category },
-      );
+      const cand: ToolCandidate = { tool: rec.name, score: r3(score), category: rec.category };
+      const withDesc =
+        includeDescription && rec.description !== undefined ? { ...cand, description: rec.description } : cand;
+      scored.push(matches ? { ...withDesc, matches: matches.sort((a, b) => b.contribution - a.contribution) } : withDesc);
     };
 
     if (ranker === 'bm25') {
@@ -221,7 +228,7 @@ export const createRouter = (tools: readonly Tool[], config: RouterConfig = {}) 
           score += c;
           if (matches) matches.push({ term, contribution: r3(c) });
         }
-        push(rec.name, rec.category, score, matches);
+        push(rec, score, matches);
       }
     } else {
       const qvec = new Map<string, number>();
@@ -243,7 +250,7 @@ export const createRouter = (tools: readonly Tool[], config: RouterConfig = {}) 
           dot += w * o;
           if (matches) matches.push({ term, contribution: r3((w * o) / qnorm) });
         }
-        push(rec.name, rec.category, dot / qnorm, matches);
+        push(rec, dot / qnorm, matches);
       }
     }
 
