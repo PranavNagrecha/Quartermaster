@@ -20,3 +20,5 @@ All notable changes to this project are documented here. Format based on
 - `bench/cases/heritage-sfi.json` — real 171-tool sf-intelligence manifest (tool
   names + descriptions only, leak-scanned; generic product surface, not org data)
   with 47 hand-authored colloquial gold queries, as a production-credibility corpus.
+- Substring/keyword baseline (mcp-funnel-style) in the bench — the honest "no
+  relevance model" floor for comparison. Consistently lowest recall across corpora.

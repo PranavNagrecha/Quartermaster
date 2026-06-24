@@ -44,10 +44,38 @@ const SAMPLE = {
 };
 
 /** The ranker variants under comparison. (substring baseline lands in P0-3.) */
+/**
+ * Substring/keyword baseline (mcp-funnel-style): no relevance model — a tool
+ * matches if any query token appears as a substring of its text. Charitably
+ * ranked by count of matched tokens (mcp-funnel itself does not rank), so this
+ * is an upper bound on what pure substring filtering achieves.
+ */
+function substringRouter(tools) {
+  const docs = tools.map((t) => ({
+    name: t.name,
+    category: t.category ?? null,
+    text: `${t.name} ${t.description ?? ''} ${t.keywords ?? ''}`.toLowerCase(),
+  }));
+  return {
+    search(query, k = 8) {
+      const toks = [...new Set(query.toLowerCase().replace(/[^a-z0-9]+/g, ' ').split(/\s+/).filter((t) => t.length > 1))];
+      const scored = [];
+      for (const d of docs) {
+        let c = 0;
+        for (const t of toks) if (d.text.includes(t)) c++;
+        if (c > 0) scored.push({ tool: d.name, score: c, category: d.category });
+      }
+      scored.sort((a, b) => b.score - a.score || a.tool.localeCompare(b.tool));
+      return scored.slice(0, k);
+    },
+  };
+}
+
 const VARIANTS = [
   { id: 'bm25', build: (f) => createRouter(f.tools) },
   { id: 'bm25+expansion', build: (f) => createRouter(f.tools, { synonyms: f.synonyms ?? {} }) },
   { id: 'tfidf', build: (f) => createRouter(f.tools, { ranker: 'tfidf' }) },
+  { id: 'substring', build: (f) => substringRouter(f.tools) },
 ];
 
 function loadFixtures() {
