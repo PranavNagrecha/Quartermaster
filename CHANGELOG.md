@@ -35,6 +35,10 @@ All notable changes to this project are documented here. Format based on
   so the host LLM knows when not to trust the result (nothing matched, or a
   near-tie). Uses a relative margin (BM25 scores are unbounded). Configurable via
   `marginThreshold` / `minTopScore`.
+- **CLI / bin wiring (P2-5)** — `quartermaster-mcp --config <path>` now actually
+  boots the proxy over stdio (federated mode when the config has `servers`, static
+  when it has `tools`); the scaffold error stub is gone. `parseCliArgs`,
+  `startFromConfig`, `runCli` exposed. +5 tests.
 - **Forwarding hardening (P2-4)** — `forwardCall` (and the federated server's
   handlers) now return MCP `isError` tool results on any failure (unknown tool,
   downstream throwing, bad args) instead of throwing a protocol error, so one bad

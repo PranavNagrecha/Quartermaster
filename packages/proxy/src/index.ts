@@ -15,10 +15,12 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { createRouter, type Router, type Tool } from '@quartermaster/core';
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { loadConfig, parseConfig } from './config.js';
+import { buildToolIndex, namespaceTools } from './downstream.js';
 import type { FederatedIndex } from './downstream.js';
 
-export { loadConfig, parseConfig } from './config.js';
-export { buildToolIndex, namespaceTools } from './downstream.js';
+export { loadConfig, parseConfig };
+export { buildToolIndex, namespaceTools };
 export type { FederatedIndex } from './downstream.js';
 
 export interface DownstreamServer {
@@ -219,4 +221,42 @@ export function createServerFromIndex(index: FederatedIndex, opts: { k?: number 
   });
 
   return server;
+}
+
+/** Parse the CLI args. Returns the config path or throws a usage error. Pure. */
+export function parseCliArgs(argv: readonly string[]): { config: string } {
+  let config: string | undefined;
+  for (const [i, a] of argv.entries()) {
+    if (a === '--config') config = argv[i + 1];
+    else if (a.startsWith('--config=')) config = a.slice('--config='.length);
+  }
+  if (config === undefined || config === '') {
+    throw new Error('usage: quartermaster-mcp --config <path-to-quartermaster.json>');
+  }
+  return { config };
+}
+
+/**
+ * Load a config and boot the proxy over stdio. Federated mode when the config has
+ * `servers` (spawns + aggregates them); static mode when it has `tools`.
+ */
+export async function startFromConfig(configPath: string): Promise<void> {
+  const config = loadConfig(configPath);
+  const federated = (config.servers?.length ?? 0) > 0;
+  const server = federated
+    ? createServerFromIndex(await buildToolIndex(config), { k: config.k })
+    : createServer(config);
+  await server.connect(new StdioServerTransport());
+  console.error(`quartermaster-mcp: ready (${federated ? 'federated' : 'static'} mode).`);
+}
+
+/** CLI entry: parse args, boot the server, and on failure log to stderr + set a non-zero exit code (never throws). */
+export async function runCli(argv: readonly string[]): Promise<void> {
+  try {
+    const { config } = parseCliArgs(argv);
+    await startFromConfig(config);
+  } catch (e) {
+    console.error(`quartermaster-mcp: ${(e as Error).message}`);
+    process.exitCode = 1;
+  }
 }
