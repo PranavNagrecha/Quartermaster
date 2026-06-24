@@ -85,6 +85,9 @@ All notable changes to this project are documented here. Format based on
   a namespaced-name → inputSchema map from downstream `tools/list`. The host LLM
   gets the full tool definition (name + description + schema) for just the
   shortlist — the token win without losing callability. +2 tests.
+- **Decision doc (P3-5)** — [`docs/choosing.md`](docs/choosing.md): when to use the
+  `@quartermaster/core` library vs the `quartermaster-mcp` proxy vs Anthropic's
+  native Tool Search, with a comparison table. Linked from the README nav.
 - **Cursor host recipe (P3-3)** — [`docs/recipes/cursor.md`](docs/recipes/cursor.md)
   + a committed example proxy config (`examples/cursor/quartermaster.json`): a
   copy-paste `~/.cursor/mcp.json` that runs `quartermaster-mcp` federating
