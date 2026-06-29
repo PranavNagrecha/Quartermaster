@@ -54,6 +54,11 @@ quartermaster policy test --config quartermaster.json --tool github.create_issue
 quartermaster savings --audit audit.jsonl --json
 ```
 
+Optional: `synonymsFile` pointing at
+[`examples/synonyms/business-to-dev.json`](../examples/synonyms/business-to-dev.json)
+bridges colloquial vocabulary (`bug`→`issue`, `folder`→`directory`). Per-team
+tuning loop: [README § Closing the gap](../README.md#closing-the-gap-per-team-not-per-developer).
+
 ## Next
 
 - [Getting started](getting-started.md) (plain-language onboarding)

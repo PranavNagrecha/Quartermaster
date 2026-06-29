@@ -8,7 +8,7 @@
 
 An offline MCP **gateway**: configure one server (`quartermaster-mcp`) in your client; Quartermaster federates downstream MCP servers, ranks tools for each query, enforces policy, validates calls, and audits token savings. Not a registry, marketplace, or hosted SaaS.
 
-[Gateway guide](docs/gateway.md) · [Quick start](docs/quickstart.md) · [Audit schema](docs/audit-schema.md) · [How it works](docs/how-it-works.md)
+[Gateway guide](docs/gateway.md) · [Quick start](docs/quickstart.md) · [Testing](docs/testing.md) · [Audit schema](docs/audit-schema.md) · [How it works](docs/how-it-works.md)
 
 </div>
 
@@ -82,6 +82,39 @@ a strong router, and offline query expansion adds a large recall boost on terse
 manifests (where the vocabulary gap bites) while adding noise on rich ones — so
 expansion is an opt-in toggle, not a silver bullet. The bet that paid off: you
 can get competitive tool routing with **no embedding model at all**.
+
+## Closing the gap (per team, not per developer)
+
+Quartermaster does **not** ship tuned routing for every MCP server on npm — and
+shouldn't try to. The model is three layers:
+
+| Layer | Who | What |
+|-------|-----|------|
+| **Global** | Everyone | Same BM25 ranker and tokenization |
+| **Org / project** | One team | One `quartermaster.json` — their MCP servers, optional `synonyms` |
+| **Traffic** | Automatic | Audit captures real queries; eval turns them into labeled cases |
+
+**Out of the box:** strong default lexical routing (~73% recall@8 on the blind
+real-MCP corpus, ~91% on rich heritage manifests — see
+[benchmarks](docs/benchmarks.md)). The funnel optimizes **recall@K**, not top-1;
+the host LLM picks from the shortlist.
+
+**Per org:** enable audit, run the closed loop, gate CI on *your* cases — not
+hand-tuning for every developer in the world:
+
+```bash
+# In your MCP host env:
+# QM_AUDIT=1  QM_AUDIT_FILE=/path/to/audit.jsonl
+
+quartermaster eval --from-audit audit.jsonl --draft-cases cases.jsonl --config quartermaster.json
+quartermaster eval --config quartermaster.json --cases cases.jsonl --weak-only
+quartermaster inspect --config quartermaster.json --audit audit.jsonl
+```
+
+Optional starter vocabulary: [`examples/synonyms/business-to-dev.json`](examples/synonyms/business-to-dev.json)
+(`bug→issue`, `folder→directory`, …). Run `quartermaster doctor` to catch empty
+descriptions and schema gaps in your downstream manifests. Full playbook:
+[testing](docs/testing.md) · [gateway eval](docs/gateway.md#eval-from-traffic).
 
 ## Quick start
 

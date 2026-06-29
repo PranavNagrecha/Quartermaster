@@ -94,12 +94,22 @@ quartermaster inspect --config quartermaster.json --audit audit.jsonl
 
 ## Eval from traffic
 
+Turn real usage into labeled eval cases and tune per org — not per developer.
+
 ```bash
 quartermaster eval --from-audit audit.jsonl --draft-cases cases.jsonl
 quartermaster eval --config quartermaster.json --cases cases.jsonl --weak-only
+quartermaster inspect --config quartermaster.json --audit audit.jsonl
 ```
 
-See [examples/ci/eval-gate.yml](../examples/ci/eval-gate.yml) for a CI gate pattern.
+- **`--from-audit`** pairs `retrieve` events with `call` / `call_miss` on the same trace and writes `(query, expectedTool)` cases.
+- **`--weak-only`** reruns eval on queries that missed the shortlist or had low confidence.
+- **`inspect`** surfaces synonym and keyword-overlay suggestions from traffic.
+
+Starter vocabulary (optional): point `synonymsFile` at
+[`examples/synonyms/business-to-dev.json`](../examples/synonyms/business-to-dev.json).
+See [examples/ci/eval-gate.yml](../examples/ci/eval-gate.yml) for a CI gate pattern and
+[testing.md](testing.md) for smoke/regression.
 
 ## What Quartermaster is not
 
