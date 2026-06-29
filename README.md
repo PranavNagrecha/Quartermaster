@@ -86,10 +86,11 @@ can get competitive tool routing with **no embedding model at all**.
 ## Quick start
 
 Quartermaster is a single package — `quartermaster-mcp`. It installs both the
-MCP proxy (`quartermaster-mcp`) and the product CLI (`quartermaster`) for
-reports, inspection, evals, and the local dashboard. Put it in front of N MCP
-servers; agents load `retrieve_tools` + `call_tool` instead of every downstream
-schema. Point it at a `quartermaster.json`:
+MCP gateway (`quartermaster-mcp`) and the product CLI (`quartermaster`) for
+reports, inspection, evals, policy tests, savings reports, diagnostics, and the
+local dashboard. Put it in front of N MCP servers; agents load `retrieve_tools`
++ `call_tool` instead of every downstream schema. Point it at a
+`quartermaster.json`:
 
 ```json
 {
@@ -107,11 +108,14 @@ npx quartermaster-mcp --config ./quartermaster.json
 ```bash
 npx -p quartermaster-mcp quartermaster report --audit audit.jsonl --out report.html
 npx -p quartermaster-mcp quartermaster eval --config quartermaster.json --cases eval.jsonl
+npx -p quartermaster-mcp quartermaster doctor --config quartermaster.json
+npx -p quartermaster-mcp quartermaster savings --audit audit.jsonl --json
 ```
 
-It spawns the downstream servers, aggregates their tools, and serves a ranked,
-schema-hydrated shortlist via `retrieve_tools` — the model then calls the chosen
-tool through `call_tool`. See [`packages/proxy`](packages/proxy/).
+It spawns the downstream servers, aggregates their tools, serves a ranked,
+schema-hydrated shortlist via `retrieve_tools`, and forwards selected calls via
+`call_tool` after policy evaluation and input-schema validation. See
+[`packages/proxy`](packages/proxy/) and the [gateway guide](docs/gateway.md).
 
 **Host recipe:** [Use Quartermaster in Cursor](docs/recipes/cursor.md) (the same
 `mcpServers` config works for Claude Desktop).
@@ -121,11 +125,12 @@ tool through `call_tool`. See [`packages/proxy`](packages/proxy/).
 One package — **[`quartermaster-mcp`](packages/proxy/)** — the drop-in MCP proxy
 that federates downstream servers behind `retrieve_tools`, `call_tool`, and
 `list_servers`, plus the `quartermaster` CLI for `report`, `inspect`, `eval`,
-and `dashboard`. The zero-dependency BM25/TF-IDF ranker, telemetry helpers, and
-CLI are **bundled into the proxy package**; they are not published separately, so
-the install is self-contained (its only runtime dependency is the MCP SDK). A
-[`.claude-plugin/`](.claude-plugin/) manifest is also included for the Claude
-Code tool-search seam.
+`policy test`, `savings`, `doctor`, and `dashboard`. The BM25/TF-IDF ranker,
+policy engine, telemetry helpers, validation, and CLI are **bundled into the
+proxy package**; they are not published separately, so the install is
+self-contained. Runtime dependencies are the MCP SDK and Ajv for JSON Schema
+validation. A [`.claude-plugin/`](.claude-plugin/) manifest is also included for
+the Claude Code tool-search seam.
 
 ## Heritage
 

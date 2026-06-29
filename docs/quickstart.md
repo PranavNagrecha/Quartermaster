@@ -1,7 +1,8 @@
 # Quickstart
 
-> Quartermaster is a **single package** — `quartermaster-mcp`, on npm. The BM25
-> ranker is bundled in, so there is nothing else to install.
+> Quartermaster is a **single package** — `quartermaster-mcp`, on npm. The
+> ranker, policy engine, audit helpers, validation, and CLI are bundled into the
+> gateway.
 
 ## Run the proxy
 
@@ -27,8 +28,31 @@ node packages/proxy/bin/quartermaster-mcp.js --config ./quartermaster.json
 
 Federated mode (config has `servers`) spawns + aggregates them; static mode
 (config has `tools`) serves a fixed manifest, discovery only. See
-[`packages/proxy`](../packages/proxy/) and the
+[`packages/proxy`](../packages/proxy/), the [gateway guide](gateway.md), and the
 [Cursor recipe](recipes/cursor.md).
+
+## Optional controls
+
+Add policy, pricing, and reliability controls as needed:
+
+```json
+{
+  "policy": {
+    "mode": "shadow",
+    "presets": ["shell", "filesystem_write"]
+  },
+  "pricing": {
+    "costPer1kTokensUsd": 0.003,
+    "tokenEstimateMethod": "chars/4"
+  }
+}
+```
+
+```bash
+quartermaster doctor --config quartermaster.json
+quartermaster policy test --config quartermaster.json --tool github.create_issue
+quartermaster savings --audit audit.jsonl --json
+```
 
 ## Next
 

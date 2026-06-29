@@ -1,8 +1,9 @@
 # Getting started
 
 Quartermaster is **one npm package** — [`quartermaster-mcp`](https://www.npmjs.com/package/quartermaster-mcp).
-It sits in front of your MCP servers and narrows hundreds of tools down to a
-shortlist the AI can actually choose from.
+It is a single MCP gateway that sits in front of your MCP servers and narrows
+hundreds of tools down to a shortlist the AI can actually choose from. It is not
+an MCP registry or marketplace.
 
 ## Pick your path
 
@@ -10,6 +11,7 @@ shortlist the AI can actually choose from.
 |---|---|
 | **Curious / non-technical** | [`examples/static-demo/`](../examples/static-demo/) — run `demo.mjs`, read the output |
 | **Using Cursor or Claude Desktop** | [Cursor recipe](recipes/cursor.md) |
+| **Running a gateway with policy/audit** | [gateway.md](gateway.md) |
 | **Choosing vs Anthropic Tool Search** | [choosing.md](choosing.md) |
 | **Building your own agent (no proxy)** | [library-integration.md](library-integration.md) |
 | **Host matrix (Cursor, Desktop, …)** | [hosts.md](hosts.md) |

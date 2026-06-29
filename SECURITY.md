@@ -32,23 +32,35 @@ federating token-gated servers.
 **must stay within the config directory**. Paths that escape via `../` are
 rejected at load time.
 
-### No MCP-layer authentication
+### MCP-layer authentication
 
 Stdio transport relies on the host process boundary (Cursor, Claude Desktop, etc.).
-There is no authentication, authorization, or encryption at the MCP layer.
-**Do not expose `quartermaster-mcp` as a network service** without additional
-hardening (not in scope for this project).
+There is no network authentication or encryption for the stdio MCP boundary
+itself. Quartermaster does provide a local policy engine for `call_tool`
+authorization decisions, but it is not a substitute for network auth. **Do not
+expose `quartermaster-mcp` as a network service** without additional hardening.
 
-### `call_tool` argument forwarding
+### `call_tool` policy and validation
 
-Arguments passed to `call_tool` are forwarded verbatim to downstream MCP servers
-without validation against the captured `inputSchema`. Downstream servers must
-validate their own inputs. A confused or malicious LLM could pass malformed args.
+Before forwarding a `call_tool` request, Quartermaster evaluates configured
+policy rules and validates arguments against the captured downstream
+`inputSchema` when one is available. Invalid calls return an MCP tool error and
+log a `validation_error`. Downstream servers should still validate their own
+inputs; schemas can be missing, incomplete, or intentionally permissive.
 
-### No rate limiting or resource caps
+### Resource controls
 
-`retrieve_tools` and `call_tool` have no built-in rate limits. Downstream
-`callTool` timeouts follow MCP SDK defaults.
+Quartermaster supports per-server `callTimeoutMs`, `connectTimeoutMs`,
+`maxConcurrency`, and circuit breaker settings. These controls reduce blast
+radius but are not a full rate-limiting or sandboxing system. Downstream tools
+still run with the permissions of their configured process or remote endpoint.
+
+### Audit redaction
+
+When `QM_AUDIT=1`, audit events are written to stderr and optionally
+`QM_AUDIT_FILE`. Quartermaster redacts likely secret keys and bearer tokens
+before writing audit events, but operators should still choose audit file
+locations and retention policies carefully.
 
 ## Reporting a vulnerability
 

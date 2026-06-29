@@ -10,10 +10,11 @@ downstream schema.
 | `call_tool` | forwards to the right downstream | not available (discovery only) |
 | `list_servers` | connected servers + tool counts | not available |
 
-**Self-contained:** the BM25/TF-IDF ranker, telemetry helpers, reporting CLI,
-eval runner, inspector, and dashboard are bundled into this one npm package. The
-only runtime dependency is the MCP SDK — no embedding model, no network, no API
-key.
+**Self-contained:** the BM25/TF-IDF ranker, policy engine, telemetry helpers,
+schema validation, reporting CLI, eval runner, inspector, diagnostics, and
+dashboard are bundled into this one npm package. Runtime dependencies are the
+MCP SDK and Ajv for JSON Schema validation — no embedding model, no network, no
+API key.
 
 ```bash
 npx quartermaster-mcp --config ./quartermaster.json
@@ -77,6 +78,26 @@ Federated deployments can re-poll downstream manifests:
 
 Exposes `retrieve_tools`, `call_tool`, and `list_servers`.
 
+Optional gateway controls:
+
+```json
+{
+  "policy": {
+    "defaultMode": "allow",
+    "mode": "enforce",
+    "presets": ["shell", "filesystem_write"],
+    "rules": [{ "effect": "deny", "serverId": "prod" }]
+  },
+  "pricing": {
+    "costPer1kTokensUsd": 0.003,
+    "tokenEstimateMethod": "chars/4"
+  }
+}
+```
+
+Per-server reliability options are also supported: `callTimeoutMs`,
+`connectTimeoutMs`, `maxConcurrency`, and `circuitBreaker`.
+
 ### Static (discovery only)
 
 A fixed tool manifest — useful for demos and ranking experiments. **No**
@@ -107,6 +128,9 @@ The same package also installs the `quartermaster` product CLI:
 npx -p quartermaster-mcp quartermaster report --audit audit.jsonl --out report.html
 npx -p quartermaster-mcp quartermaster inspect --config quartermaster.json --audit audit.jsonl
 npx -p quartermaster-mcp quartermaster eval --config quartermaster.json --cases eval.jsonl
+npx -p quartermaster-mcp quartermaster policy test --config quartermaster.json --tool github.create_issue
+npx -p quartermaster-mcp quartermaster savings --audit audit.jsonl --json
+npx -p quartermaster-mcp quartermaster doctor --config quartermaster.json
 npx -p quartermaster-mcp quartermaster dashboard --audit audit.jsonl
 ```
 

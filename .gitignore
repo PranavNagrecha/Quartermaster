@@ -1,5 +1,6 @@
 node_modules/
 .sbom-work/
+sbom.json
 dist/
 *.tsbuildinfo
 .DS_Store
