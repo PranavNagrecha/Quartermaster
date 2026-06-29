@@ -10,8 +10,10 @@ downstream schema.
 | `call_tool` | forwards to the right downstream | not available (discovery only) |
 | `list_servers` | connected servers + tool counts | not available |
 
-**Self-contained:** the BM25/TF-IDF ranker is bundled in, so the only runtime
-dependency is the MCP SDK — no embedding model, no network, no API key.
+**Self-contained:** the BM25/TF-IDF ranker, telemetry helpers, reporting CLI,
+eval runner, inspector, and dashboard are bundled into this one npm package. The
+only runtime dependency is the MCP SDK — no embedding model, no network, no API
+key.
 
 ```bash
 npx quartermaster-mcp --config ./quartermaster.json
@@ -99,10 +101,20 @@ See [`examples/static-demo`](../../examples/static-demo/) for a runnable static 
 npx quartermaster-mcp --config ./quartermaster.json
 ```
 
+The same package also installs the `quartermaster` product CLI:
+
+```bash
+npx -p quartermaster-mcp quartermaster report --audit audit.jsonl --out report.html
+npx -p quartermaster-mcp quartermaster inspect --config quartermaster.json --audit audit.jsonl
+npx -p quartermaster-mcp quartermaster eval --config quartermaster.json --cases eval.jsonl
+npx -p quartermaster-mcp quartermaster dashboard --audit audit.jsonl
+```
+
 From a source checkout (after `pnpm -r build`):
 
 ```bash
 node packages/proxy/bin/quartermaster-mcp.js --config ./quartermaster.json
+node packages/proxy/bin/quartermaster.js report --audit audit.jsonl
 ```
 
 ## Security

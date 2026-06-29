@@ -8,7 +8,35 @@ importers:
 
   .: {}
 
+  packages/cli:
+    dependencies:
+      '@quartermaster/core':
+        specifier: workspace:^
+        version: link:../core
+      '@quartermaster/policy':
+        specifier: workspace:^
+        version: link:../policy
+      '@quartermaster/telemetry':
+        specifier: workspace:^
+        version: link:../telemetry
+      quartermaster-mcp:
+        specifier: workspace:^
+        version: link:../proxy
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.0
+      typescript:
+        specifier: ^5.5.0
+        version: 5.9.3
+
   packages/core:
+    devDependencies:
+      typescript:
+        specifier: ^5.5.0
+        version: 5.9.3
+
+  packages/policy:
     devDependencies:
       typescript:
         specifier: ^5.5.0
@@ -19,16 +47,34 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: ^1.0.0
         version: 1.29.0(zod@4.4.3)
+      ajv:
+        specifier: ^8.17.1
+        version: 8.20.0
     devDependencies:
       '@quartermaster/core':
         specifier: workspace:^
         version: link:../core
+      '@quartermaster/policy':
+        specifier: workspace:^
+        version: link:../policy
+      '@quartermaster/telemetry':
+        specifier: workspace:^
+        version: link:../telemetry
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.0
       esbuild:
         specifier: ^0.24.0
         version: 0.24.2
+      typescript:
+        specifier: ^5.5.0
+        version: 5.9.3
+
+  packages/telemetry:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.0
       typescript:
         specifier: ^5.5.0
         version: 5.9.3

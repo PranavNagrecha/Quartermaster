@@ -13,6 +13,10 @@
   ],
   "scripts": {
     "build": "pnpm -r build",
+    "quartermaster": "node packages/proxy/bin/quartermaster.js",
+    "eval": "node packages/proxy/bin/quartermaster.js eval",
+    "report": "node packages/proxy/bin/quartermaster.js report",
+    "dashboard": "node packages/proxy/bin/quartermaster.js dashboard",
     "test": "pnpm -r test",
     "lint": "pnpm -r lint",
     "bench": "node bench/run.mjs",

@@ -1,0 +1,13 @@
+{
+  "tools": [
+    { "name": "github.create_issue", "description": "Open a new issue in a repository" },
+    { "name": "github.search_code", "description": "Search source code across repositories" },
+    { "name": "slack.post_message", "description": "Send a message to a Slack channel" },
+    { "name": "calendar.create_event", "description": "Add an event to the calendar" }
+  ],
+  "synonyms": {
+    "bug": ["issue"],
+    "file": ["create", "open"],
+    "dm": ["message"]
+  }
+}

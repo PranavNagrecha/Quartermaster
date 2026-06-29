@@ -5,6 +5,8 @@
  */
 import { readFileSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
+import { mergePolicy, parsePolicyObject } from '@quartermaster/policy';
+import type { PolicyConfig } from '@quartermaster/policy';
 import type { DownstreamServer, ProxyConfig, ProxyRankerConfig } from './index.js';
 import type { RouterConfig, Tool } from '@quartermaster/core';
 
@@ -36,7 +38,7 @@ function validateTools(v: unknown, src: string): Tool[] {
 function validateServers(v: unknown, src: string): DownstreamServer[] {
   if (v === undefined) return [];
   if (!Array.isArray(v)) throw new Error(`quartermaster: ${src} "servers" must be an array.`);
-  const out = v.map((s, i) => {
+  const out: DownstreamServer[] = v.map((s, i) => {
     if (!isObject(s)) throw new Error(`quartermaster: ${src} servers[${i}] must be an object.`);
     if (typeof s.id !== 'string' || s.id.trim() === '') {
       throw new Error(`quartermaster: ${src} servers[${i}] is missing a non-empty string "id".`);
@@ -46,8 +48,36 @@ function validateServers(v: unknown, src: string): DownstreamServer[] {
         `quartermaster: ${src} servers[${i}] ("${s.id}") id must not contain '.' — it namespaces tool names as server.tool.`,
       );
     }
-    if (typeof s.command !== 'string' || s.command.trim() === '') {
-      throw new Error(`quartermaster: ${src} servers[${i}] ("${s.id}") is missing a non-empty string "command".`);
+    const transport = s.transport;
+    if (transport !== undefined && transport !== 'stdio' && transport !== 'http') {
+      throw new Error(`quartermaster: ${src} servers[${i}] ("${s.id}").transport must be "stdio" or "http".`);
+    }
+    const hasCommand = typeof s.command === 'string' && s.command.trim() !== '';
+    const hasUrl = typeof s.url === 'string' && s.url.trim() !== '';
+    if (hasCommand && hasUrl) {
+      throw new Error(
+        `quartermaster: ${src} servers[${i}] ("${s.id}") must not set both "command" and "url" — use stdio or http.`,
+      );
+    }
+    if (!hasCommand && !hasUrl) {
+      throw new Error(
+        `quartermaster: ${src} servers[${i}] ("${s.id}") needs "command" (stdio) or "url" (http).`,
+      );
+    }
+    if (hasUrl || transport === 'http') {
+      if (!hasUrl) {
+        throw new Error(`quartermaster: ${src} servers[${i}] ("${s.id}") with transport "http" needs a "url".`);
+      }
+      if (s.headers !== undefined && (!isObject(s.headers) || Object.values(s.headers).some((val) => typeof val !== 'string'))) {
+        throw new Error(`quartermaster: ${src} servers[${i}] ("${s.id}").headers must be an object of string -> string.`);
+      }
+      return {
+        id: s.id,
+        transport: 'http' as const,
+        url: s.url as string,
+        headers: s.headers as Record<string, string> | undefined,
+        ...validateServerReliability(s, src, i),
+      };
     }
     if (s.args !== undefined && (!Array.isArray(s.args) || s.args.some((a) => typeof a !== 'string'))) {
       throw new Error(`quartermaster: ${src} servers[${i}] ("${s.id}").args must be an array of strings.`);
@@ -57,9 +87,11 @@ function validateServers(v: unknown, src: string): DownstreamServer[] {
     }
     return {
       id: s.id,
-      command: s.command,
+      transport: 'stdio' as const,
+      command: s.command as string,
       args: s.args as string[] | undefined,
       env: s.env as Record<string, string> | undefined,
+      ...validateServerReliability(s, src, i),
     };
   });
   // Ids must be unique — they namespace tool names, so a collision would shadow tools.
@@ -165,6 +197,51 @@ function validateRefreshInterval(v: unknown, src: string): number | undefined {
   return v;
 }
 
+function validatePositiveMs(v: unknown, name: string, src: string): number | undefined {
+  if (v === undefined) return undefined;
+  if (typeof v !== 'number' || !Number.isFinite(v) || v <= 0) {
+    throw new Error(`quartermaster: ${src} "${name}" must be a positive number.`);
+  }
+  return v;
+}
+
+function validateCircuitBreaker(v: unknown, src: string, i: number) {
+  if (v === undefined) return undefined;
+  if (!isObject(v)) {
+    throw new Error(`quartermaster: ${src} servers[${i}].circuitBreaker must be an object.`);
+  }
+  const failureThreshold = validatePositiveMs(v.failureThreshold, 'failureThreshold', `${src} servers[${i}].circuitBreaker`);
+  const resetMs = validatePositiveMs(v.resetMs, 'resetMs', `${src} servers[${i}].circuitBreaker`);
+  if (failureThreshold === undefined && resetMs === undefined) return undefined;
+  return { failureThreshold, resetMs };
+}
+
+function validateServerReliability(s: Record<string, unknown>, src: string, i: number) {
+  return {
+    callTimeoutMs: validatePositiveMs(s.callTimeoutMs, 'callTimeoutMs', `${src} servers[${i}]`),
+    connectTimeoutMs: validatePositiveMs(s.connectTimeoutMs, 'connectTimeoutMs', `${src} servers[${i}]`),
+    maxConcurrency: validatePositiveMs(s.maxConcurrency, 'maxConcurrency', `${src} servers[${i}]`),
+    circuitBreaker: validateCircuitBreaker(s.circuitBreaker, src, i),
+  };
+}
+
+function validatePricing(v: unknown, src: string): ProxyConfig['pricing'] | undefined {
+  if (v === undefined) return undefined;
+  if (!isObject(v)) throw new Error(`quartermaster: ${src} "pricing" must be an object.`);
+  const cost = v.costPer1kTokensUsd;
+  if (cost !== undefined && (typeof cost !== 'number' || !Number.isFinite(cost) || cost < 0)) {
+    throw new Error(`quartermaster: ${src} pricing.costPer1kTokensUsd must be a non-negative number.`);
+  }
+  const method = v.tokenEstimateMethod;
+  if (method !== undefined && method !== 'chars/4' && method !== 'words*1.3') {
+    throw new Error(`quartermaster: ${src} pricing.tokenEstimateMethod must be "chars/4" or "words*1.3".`);
+  }
+  return {
+    costPer1kTokensUsd: cost as number | undefined,
+    tokenEstimateMethod: method as 'chars/4' | 'words*1.3' | undefined,
+  };
+}
+
 /** Merge proxy config into core `RouterConfig` (synonyms at top level + optional ranker block). */
 export function buildRouterOptions(config: ProxyConfig): RouterConfig {
   const r = config.ranker ?? {};
@@ -201,6 +278,11 @@ function validateOptionalString(v: unknown, name: string, src: string): string |
   return v;
 }
 
+function validatePolicy(v: unknown, src: string): PolicyConfig | undefined {
+  if (v === undefined) return undefined;
+  return parsePolicyObject(v, `${src} policy`);
+}
+
 /** Validate an already-parsed config object. `source` is used in error messages. */
 export function parseConfig(text: string, source = '<config>'): ProxyConfig {
   let data: unknown;
@@ -228,6 +310,11 @@ export function parseConfig(text: string, source = '<config>'): ProxyConfig {
     k: validateK(data.k, source),
     ranker: validateRanker(data.ranker, source),
     refreshIntervalMs: validateRefreshInterval(data.refreshIntervalMs, source),
+    callTimeoutMs: validatePositiveMs(data.callTimeoutMs, 'callTimeoutMs', source),
+    maxK: validateK(data.maxK, source),
+    policy: validatePolicy(data.policy, source),
+    policyFile: validateOptionalString(data.policyFile, 'policyFile', source),
+    pricing: validatePricing(data.pricing, source),
   };
 }
 
@@ -269,5 +356,10 @@ export function loadConfig(path: string): ProxyConfig {
     const ext = validateOverlays(readJsonFile(config.overlaysFile, 'overlays'), config.overlaysFile) ?? {};
     overlays = { ...ext, ...(config.overlays ?? {}) };
   }
-  return { ...config, synonyms, overlays };
+  let policy = config.policy;
+  if (config.policyFile !== undefined) {
+    const ext = parsePolicyObject(readJsonFile(config.policyFile, 'policy'), config.policyFile);
+    policy = mergePolicy(ext, config.policy);
+  }
+  return { ...config, synonyms, overlays, policy };
 }

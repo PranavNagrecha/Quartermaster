@@ -12,6 +12,8 @@
 // Usage:  node bench/run.mjs            (all fixtures, or the built-in sample)
 //         node bench/run.mjs --json     (also write bench/results/<ts>.json)
 //         node bench/run.mjs --ci       (exit 1 if heritage bm25 R@1 regresses)
+//
+// For config-driven eval with HTML reports, use: quartermaster eval --config quartermaster.json --cases eval.jsonl
 import { readdirSync, readFileSync, mkdirSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';

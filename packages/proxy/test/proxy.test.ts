@@ -3,18 +3,28 @@ import { test } from 'node:test';
 // Import the built dist (the package as consumed): index re-exports across files
 // with NodeNext `.js` specifiers, which raw type-stripping of src can't resolve.
 // CI builds before testing; the loop's local flow does too.
-import { buildStaticRouter, closeIndex, createServer, createServerFromIndex, forwardCall, listServersPayload, resolveCall, retrieveTools, serverSummary } from '../dist/index.js';
+import { buildStaticRouter, clampK, closeIndex, createServer, createServerFromIndex, forwardCall, listServersPayload, resolveCall, retrieveTools, serverSummary } from '../dist/index.js';
 
 /** A minimal fake FederatedIndex (no real downstream — exercises routing only). */
-function fakeIndex() {
+function fakeIndex(overrides: Record<string, unknown> = {}) {
+  const tools = [{ name: 'github.create_issue', description: 'Open a new issue in a repository', category: 'github' }];
   return {
     router: buildStaticRouter(CONFIG),
     clients: new Map([['github', { callTool: async () => ({ content: [{ type: 'text', text: 'ok' }] }) }]]),
     toolToServer: new Map([['github.create_issue', 'github']]),
     toolToBare: new Map([['github.create_issue', 'create_issue']]),
     schemas: new Map([['github.create_issue', { type: 'object' }]]),
+    lastKnownTools: new Map([['github', tools]]),
+    catalogTools: tools,
+    retrieveByTraceId: new Map(),
     skippedServers: [],
     configuredServerCount: 1,
+    callTimeoutMs: 30_000,
+    maxK: 50,
+    serverById: new Map([['github', { id: 'github', command: 'noop', transport: 'stdio' as const }]]),
+    circuitBreakers: new Map(),
+    semaphores: new Map(),
+    ...overrides,
   };
 }
 
@@ -92,8 +102,13 @@ test('resolveCall returns the indexed bare name verbatim (handles dotted names)'
     toolToServer: new Map([['srv.weird.tool.name', 'srv']]),
     toolToBare: new Map([['srv.weird.tool.name', 'weird.tool.name']]),
     schemas: new Map(),
+    lastKnownTools: new Map(),
+    catalogTools: [],
+    retrieveByTraceId: new Map(),
     skippedServers: [],
     configuredServerCount: 1,
+    callTimeoutMs: 30_000,
+    maxK: 50,
   };
   assert.equal(resolveCall(idx, 'srv.weird.tool.name').bareName, 'weird.tool.name');
 });
@@ -137,6 +152,22 @@ test('forwardCall returns an isError result for an unknown tool', async () => {
   assert.match(res.content[0]?.text ?? '', /unknown tool/);
 });
 
+test('forwardCall times out when the downstream hangs', { timeout: 5000 }, async () => {
+  const idx = fakeIndex({
+    clients: new Map([['github', { callTool: async () => new Promise(() => {}) }]]),
+    callTimeoutMs: 50,
+  });
+  const res = await forwardCall(idx, 'github.create_issue', {}, { callTimeoutMs: 50 });
+  assert.equal(res.isError, true);
+  assert.match(res.content[0]?.text ?? '', /timed out after 50ms/);
+});
+
+test('clampK caps oversized shortlist requests', () => {
+  assert.equal(clampK(9999, 8, 50), 50);
+  assert.equal(clampK(undefined, 8, 50), 8);
+  assert.equal(clampK(3, 8, 50), 3);
+});
+
 // Clean shutdown (P2-7).
 test('closeIndex closes every downstream client', async () => {
   let closed = 0;
@@ -147,7 +178,15 @@ test('closeIndex closes every downstream client', async () => {
       ['b', { close: async () => { closed++; } }],
     ]),
     toolToServer: new Map(),
+    toolToBare: new Map(),
     schemas: new Map(),
+    lastKnownTools: new Map(),
+    catalogTools: [],
+    retrieveByTraceId: new Map(),
+    skippedServers: [],
+    configuredServerCount: 2,
+    callTimeoutMs: 30_000,
+    maxK: 50,
   };
   await closeIndex(idx);
   assert.equal(closed, 2);
@@ -158,7 +197,15 @@ test('closeIndex tolerates a client whose close rejects', async () => {
     router: buildStaticRouter(CONFIG),
     clients: new Map([['a', { close: async () => { throw new Error('boom'); } }]]),
     toolToServer: new Map(),
+    toolToBare: new Map(),
     schemas: new Map(),
+    lastKnownTools: new Map(),
+    catalogTools: [],
+    retrieveByTraceId: new Map(),
+    skippedServers: [],
+    configuredServerCount: 1,
+    callTimeoutMs: 30_000,
+    maxK: 50,
   };
   await assert.doesNotReject(() => closeIndex(idx));
 });

@@ -5,8 +5,18 @@ All notable changes to this project are documented here. Format based on
 
 ## [Unreleased]
 
-### Fixed
-- README no longer claims BM25 beats the substring baseline "everywhere"; heritage and blind corpus numbers are both stated upfront.
+## [0.1.4] - 2026-06-29
+
+### Added
+- **MCP gateway hardening:** policy engine (`@quartermaster/policy`), `call_tool` schema validation (ajv), audit schema v2 with secret redaction.
+- **CLI:** `quartermaster policy test`, `quartermaster savings`, `quartermaster doctor`; eval weak-query detection and `--weak-only`.
+- **Reliability:** per-server timeouts, concurrency limits, circuit breaker; connect timeout on downstream boot.
+- **Packages:** `@quartermaster/cli`, `@quartermaster/telemetry`, `@quartermaster/policy` (private workspace packages bundled into `quartermaster-mcp`).
+- **Docs:** [`docs/gateway.md`](docs/gateway.md), [`docs/audit-schema.md`](docs/audit-schema.md); Dockerfile; CI SBOM artifact.
+
+### Changed
+- README positions Quartermaster as a single MCP gateway (not a registry/marketplace).
+- `quartermaster report` JSON output includes dimensional savings breakdowns.
 
 ## [0.1.3] - 2026-06-24
 

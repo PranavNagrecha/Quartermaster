@@ -1,0 +1,2 @@
+{"query":"file a bug on the repo","expectedTool":"github.create_issue"}
+{"query":"send a message to sales","expectedTool":"slack.post_message"}

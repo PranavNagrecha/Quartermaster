@@ -82,7 +82,26 @@ test('rejects duplicate server ids (they namespace tool names)', () => {
 });
 
 test('rejects a server missing a command', () => {
-  assert.throws(() => parseConfig(JSON.stringify({ servers: [{ id: 'gh' }] })), /missing.*"command"/);
+  assert.throws(() => parseConfig(JSON.stringify({ servers: [{ id: 'gh' }] })), /needs "command".*"url"/);
+});
+
+test('parses an HTTP downstream server', () => {
+  const cfg = parseConfig(JSON.stringify({ servers: [{ id: 'remote', transport: 'http', url: 'http://127.0.0.1:3000/mcp' }] }));
+  assert.equal(cfg.servers?.[0]?.id, 'remote');
+  assert.equal((cfg.servers?.[0] as { url?: string }).url, 'http://127.0.0.1:3000/mcp');
+});
+
+test('rejects a server with both command and url', () => {
+  assert.throws(
+    () => parseConfig(JSON.stringify({ servers: [{ id: 'x', command: 'node', url: 'http://localhost/' }] })),
+    /must not set both/,
+  );
+});
+
+test('parses callTimeoutMs and maxK', () => {
+  const cfg = parseConfig(JSON.stringify({ tools: [{ name: 'a' }], callTimeoutMs: 5000, maxK: 20 }));
+  assert.equal(cfg.callTimeoutMs, 5000);
+  assert.equal(cfg.maxK, 20);
 });
 
 test('rejects a non-positive k', () => {

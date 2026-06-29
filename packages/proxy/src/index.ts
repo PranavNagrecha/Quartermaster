@@ -12,29 +12,81 @@
  * Two modes: federated (config `servers` — spawn + aggregate `tools/list` +
  * forward `tools/call`) and static (config `tools` — a fixed manifest, discovery only).
  */
+import { randomUUID } from 'node:crypto';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { createRouter, type Router, type Tool } from '@quartermaster/core';
+import { evaluatePolicy, type PolicyConfig } from '@quartermaster/policy';
+import {
+  estimateCatalogTokens,
+  estimateCostSavingsUsd,
+  estimateToolSchemaTokens,
+  resolveTokenEstimateMethod,
+} from '@quartermaster/telemetry';
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { loadConfig, parseConfig, buildRouterOptions } from './config.js';
-import { applyOverlays, buildToolIndex, interpolateEnv, namespaceTools, refreshToolIndex } from './downstream.js';
+import {
+  applyOverlays,
+  buildToolIndex,
+  interpolateEnv,
+  maintainToolIndex,
+  namespaceTools,
+  refreshToolIndex,
+  retrySkippedServers,
+  emitToolCatalogSnapshot,
+  emitServerSnapshot,
+} from './downstream.js';
 import type { FederatedIndex } from './downstream.js';
+import { auditLog, initAudit } from './audit.js';
+import { validateToolArguments } from './validate.js';
+import { CircuitBreaker, Semaphore, withTimeout } from './reliability.js';
 import { PACKAGE_VERSION } from './version.js';
 
 export { assertWithinConfigDir, buildRouterOptions, loadConfig, parseConfig } from './config.js';
-export { buildToolIndex, namespaceTools, interpolateEnv, applyOverlays, refreshToolIndex };
-export type { FederatedIndex, SkippedServer, RefreshReport } from './downstream.js';
+export {
+  buildToolIndex,
+  namespaceTools,
+  interpolateEnv,
+  applyOverlays,
+  refreshToolIndex,
+  retrySkippedServers,
+  maintainToolIndex,
+  carryForwardServerSnapshot,
+  emitToolCatalogSnapshot,
+  emitServerSnapshot,
+} from './downstream.js';
+export type { FederatedIndex, SkippedServer, RefreshReport, RetryReport } from './downstream.js';
+export { auditLog, initAudit, getSessionId, createSessionId } from './audit.js';
+export { CircuitBreaker, Semaphore, withTimeout } from './reliability.js';
+export { validateToolArguments } from './validate.js';
 
-export interface DownstreamServer {
-  /** Display id, used to namespace tool names (e.g. `github`). */
+/** Stdio downstream: spawn a child MCP server process. */
+export interface StdioDownstreamServer {
   readonly id: string;
-  /** Command to launch the downstream MCP server (stdio transport). */
+  readonly transport?: 'stdio';
   readonly command: string;
   readonly args?: readonly string[];
-  /** Environment for the child process. Values may reference `${VAR}`, resolved from process.env at connect time. */
   readonly env?: Readonly<Record<string, string>>;
+  readonly callTimeoutMs?: number;
+  readonly connectTimeoutMs?: number;
+  readonly maxConcurrency?: number;
+  readonly circuitBreaker?: { readonly failureThreshold?: number; readonly resetMs?: number };
 }
+
+/** HTTP downstream: connect to a remote streamable-HTTP MCP endpoint. */
+export interface HttpDownstreamServer {
+  readonly id: string;
+  readonly transport: 'http';
+  readonly url: string;
+  readonly headers?: Readonly<Record<string, string>>;
+  readonly callTimeoutMs?: number;
+  readonly connectTimeoutMs?: number;
+  readonly maxConcurrency?: number;
+  readonly circuitBreaker?: { readonly failureThreshold?: number; readonly resetMs?: number };
+}
+
+export type DownstreamServer = StdioDownstreamServer | HttpDownstreamServer;
 
 export interface ProxyRankerConfig {
   readonly ranker?: 'bm25' | 'tfidf';
@@ -66,6 +118,27 @@ export interface ProxyConfig {
   readonly ranker?: ProxyRankerConfig;
   /** Re-poll downstream `tools/list` on this interval (ms). Federated mode only. Min 1000. */
   readonly refreshIntervalMs?: number;
+  /** Timeout for downstream tools/call forwarded via call_tool (ms). Default 30000. */
+  readonly callTimeoutMs?: number;
+  /** Upper bound on retrieve_tools shortlist size. Default 50. */
+  readonly maxK?: number;
+  /** Optional tool-call policy (allow/deny rules, presets, shadow mode). */
+  readonly policy?: PolicyConfig;
+  /** Path to external policy JSON, resolved relative to the config file. */
+  readonly policyFile?: string;
+  /** Token/cost pricing for savings estimates. */
+  readonly pricing?: {
+    readonly costPer1kTokensUsd?: number;
+    readonly tokenEstimateMethod?: 'chars/4' | 'words*1.3';
+  };
+}
+
+const DEFAULT_MAX_K = 50;
+
+/** Clamp a retrieve_tools `k` to (0, maxK]. */
+export function clampK(requested: unknown, defaultK: number, maxK: number): number {
+  const k = typeof requested === 'number' && requested > 0 ? Math.floor(requested) : defaultK;
+  return Math.min(k, maxK);
 }
 
 /** Build the offline router from the config's static tool manifest. Fails LOUD on an empty manifest. */
@@ -106,10 +179,124 @@ function debugRetrieve(router: Router, query: string, k: number, result: ReturnT
   }
 }
 
+function agentId(): string {
+  return process.env.QM_AGENT_ID ?? 'unknown';
+}
+
+function policyEnvironment(): string {
+  return process.env.QM_ENV ?? 'default';
+}
+
+function computeRetrieveTokenStats(
+  candidates: readonly { readonly tool: string; readonly description?: string }[],
+  catalogTools: readonly Tool[],
+  schemas: ReadonlyMap<string, unknown>,
+  pricing?: ProxyConfig['pricing'],
+): {
+  totalSchemaTokens: number;
+  shortlistSchemaTokens: number;
+  estimatedTokenSavings: number;
+  estimatedCostSavingsUsd: number;
+  tokenEstimateMethod: string;
+} {
+  const tokenEstimateMethod = resolveTokenEstimateMethod(pricing);
+  const catalog = estimateCatalogTokens(catalogTools, schemas, tokenEstimateMethod);
+  const toolByName = new Map(catalogTools.map((t) => [t.name, t]));
+  let shortlistSchemaTokens = 0;
+  for (const c of candidates) {
+    const meta = toolByName.get(c.tool);
+    shortlistSchemaTokens += estimateToolSchemaTokens({
+      name: c.tool,
+      description: c.description ?? meta?.description,
+      keywords: meta?.keywords,
+      inputSchema: schemas.get(c.tool),
+    }, tokenEstimateMethod);
+  }
+  const estimatedTokenSavings = Math.max(0, catalog.totalSchemaTokens - shortlistSchemaTokens);
+  return {
+    totalSchemaTokens: catalog.totalSchemaTokens,
+    shortlistSchemaTokens,
+    estimatedTokenSavings,
+    estimatedCostSavingsUsd: estimateCostSavingsUsd(estimatedTokenSavings, pricing),
+    tokenEstimateMethod,
+  };
+}
+
+function auditRetrieve(
+  traceId: string,
+  query: string,
+  k: number,
+  result: ReturnType<typeof retrieveTools>,
+  ctx: {
+    totalTools: number;
+    catalogTools: readonly Tool[];
+    schemas: ReadonlyMap<string, unknown>;
+    pricing?: ProxyConfig['pricing'];
+  },
+  startedAt: number,
+): void {
+  const tokenStats = computeRetrieveTokenStats(result.candidates, ctx.catalogTools, ctx.schemas, ctx.pricing);
+  auditLog({
+    event: 'retrieve',
+    traceId,
+    agentId: agentId(),
+    query,
+    k,
+    confidence: result.confidence,
+    candidateTools: result.candidates.map((c) => c.tool),
+    candidateScores: result.candidates.map((c) => c.score),
+    totalTools: ctx.totalTools,
+    totalSchemaTokens: tokenStats.totalSchemaTokens,
+    shortlistSchemaTokens: tokenStats.shortlistSchemaTokens,
+    estimatedTokenSavings: tokenStats.estimatedTokenSavings,
+    tokenEstimateMethod: tokenStats.tokenEstimateMethod,
+    estimatedCostSavingsUsd: tokenStats.estimatedCostSavingsUsd,
+    latencyMs: Math.round(performance.now() - startedAt),
+    status: 'ok',
+  });
+}
+
+const MAX_RETRIEVE_TRACES = 64;
+
+/** Store a retrieve_tools trace for later call_tool attribution (FIFO cap). */
+export function storeRetrieveTrace(
+  index: FederatedIndex,
+  ctx: { readonly query: string; readonly tools: readonly string[]; readonly traceId: string },
+): void {
+  index.lastRetrieve = ctx;
+  index.retrieveByTraceId.set(ctx.traceId, ctx);
+  while (index.retrieveByTraceId.size > MAX_RETRIEVE_TRACES) {
+    const oldest = index.retrieveByTraceId.keys().next().value;
+    if (oldest === undefined) break;
+    index.retrieveByTraceId.delete(oldest);
+  }
+}
+
+/**
+ * Resolve which retrieve_tools trace a call_tool belongs to.
+ * Order: explicit traceId → most recent trace containing toolName → lastRetrieve.
+ */
+export function resolveRetrieveForCall(
+  index: FederatedIndex,
+  toolName: string,
+  explicitTraceId?: string,
+): { readonly query: string; readonly tools: readonly string[]; readonly traceId: string } | undefined {
+  if (explicitTraceId !== undefined && explicitTraceId !== '') {
+    const hit = index.retrieveByTraceId.get(explicitTraceId);
+    if (hit !== undefined) return hit;
+  }
+  for (const entry of [...index.retrieveByTraceId.values()].reverse()) {
+    if (entry.tools.includes(toolName)) return entry;
+  }
+  return index.lastRetrieve;
+}
+
 /** Construct the MCP server exposing `retrieve_tools`. The transport is connected by `startServer` / the bin. */
 export function createServer(config: ProxyConfig): Server {
-  const router = buildStaticRouter(config);
+  const catalogTools = applyOverlays(config.tools ?? [], config.overlays);
+  const router = createRouter(catalogTools, buildRouterOptions(config));
   const defaultK = config.k ?? 8;
+  const maxK = config.maxK ?? DEFAULT_MAX_K;
   const server = new Server({ name: 'quartermaster-mcp', version: PACKAGE_VERSION }, { capabilities: { tools: {} } });
 
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
@@ -117,7 +304,7 @@ export function createServer(config: ProxyConfig): Server {
       {
         name: 'retrieve_tools',
         description:
-          'Find the most relevant tools for a natural-language task. Returns a ranked, ' +
+          'REQUIRED first step: find the most relevant tools for a natural-language task. Returns a ranked, ' +
           'confidence-annotated shortlist (with descriptions) — read it and call the tool you need, ' +
           'instead of loading every tool up front.',
         inputSchema: {
@@ -142,10 +329,20 @@ export function createServer(config: ProxyConfig): Server {
       return errorResult('retrieve_tools: `query` (non-empty string) is required.');
     }
     const kRaw = (args as Record<string, unknown>).k;
-    const k = typeof kRaw === 'number' && kRaw > 0 ? Math.floor(kRaw) : defaultK;
+    const k = clampK(kRaw, defaultK, maxK);
+    const startedAt = performance.now();
+    const traceId = randomUUID();
     const result = retrieveTools(router, query, k);
     debugRetrieve(router, query, k, result);
-    return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }] };
+    auditRetrieve(
+      traceId,
+      query,
+      k,
+      result,
+      { totalTools: catalogTools.length, catalogTools, schemas: new Map(), pricing: config.pricing },
+      startedAt,
+    );
+    return { content: [{ type: 'text' as const, text: JSON.stringify({ ...result, traceId }, null, 2) }] };
   });
 
   return server;
@@ -201,20 +398,149 @@ function errorResult(message: string) {
 
 /**
  * Forward a chosen namespaced tool to its downstream client. Any failure (unknown
- * tool, or the downstream throwing) is returned as an `isError` tool result
+ * tool, timeout, or the downstream throwing) is returned as an `isError` tool result
  * rather than thrown, so one bad call never takes down the proxy session.
  */
-export async function forwardCall(index: FederatedIndex, toolName: string, args: Record<string, unknown>) {
+export async function forwardCall(
+  index: FederatedIndex,
+  toolName: string,
+  args: Record<string, unknown>,
+  opts: { callTimeoutMs?: number; traceId?: string } = {},
+) {
   let target: { client: Client; bareName: string };
   try {
     target = resolveCall(index, toolName);
   } catch (e) {
     return errorResult((e as Error).message);
   }
+  const serverId = index.toolToServer.get(toolName) ?? '';
+  const retrieve = resolveRetrieveForCall(index, toolName, opts.traceId);
+  const traceId = retrieve?.traceId ?? opts.traceId ?? '';
+  const timeoutMs =
+    index.serverById.get(serverId)?.callTimeoutMs ?? opts.callTimeoutMs ?? index.callTimeoutMs ?? 30_000;
+  const circuit = index.circuitBreakers.get(serverId);
+  if (circuit?.isOpen()) {
+    auditLog({
+      event: 'call',
+      traceId,
+      tool: toolName,
+      serverId,
+      wasShortlisted: false,
+      rank: 0,
+      ok: false,
+      latencyMs: 0,
+      error: `circuit open for server "${serverId}"`,
+      errorCategory: 'circuit_open',
+    });
+    return errorResult(`circuit open for server "${serverId}" — too many recent failures`);
+  }
+  const policyDecision = evaluatePolicy(index.policy, {
+    toolName,
+    bareName: target.bareName,
+    serverId,
+    agentId: agentId(),
+    environment: policyEnvironment(),
+  });
+  auditLog({
+    event: 'policy_decision',
+    traceId,
+    tool: toolName,
+    serverId,
+    allowed: policyDecision.allowed,
+    shadow: policyDecision.shadow,
+    mode: policyDecision.mode,
+    reason: policyDecision.reason,
+    matchedPreset: policyDecision.matchedPreset,
+  });
+  if (!policyDecision.allowed && !policyDecision.shadow) {
+    auditLog({
+      event: 'call',
+      traceId,
+      tool: toolName,
+      serverId,
+      wasShortlisted: false,
+      rank: 0,
+      ok: false,
+      latencyMs: 0,
+      error: policyDecision.reason,
+      errorCategory: 'policy_denied',
+    });
+    return errorResult(`policy denied call to "${toolName}": ${policyDecision.reason}`);
+  }
+  const inputSchema = index.schemas.get(toolName);
+  const validation = validateToolArguments(index, toolName, args, inputSchema);
+  if (!validation.ok) {
+    auditLog({
+      event: 'validation_error',
+      traceId,
+      tool: toolName,
+      serverId,
+      errors: [...validation.errors],
+    });
+    auditLog({
+      event: 'call',
+      traceId,
+      tool: toolName,
+      serverId,
+      wasShortlisted: false,
+      rank: 0,
+      ok: false,
+      latencyMs: 0,
+      error: validation.errors.join('; '),
+      errorCategory: 'validation_error',
+    });
+    return errorResult(`invalid arguments for "${toolName}": ${validation.errors.join('; ')}`);
+  }
+  const rankIdx = retrieve?.tools.indexOf(toolName) ?? -1;
+  const wasShortlisted = rankIdx >= 0;
+  const rank = wasShortlisted ? rankIdx + 1 : 0;
+  if (retrieve !== undefined && !wasShortlisted) {
+    auditLog({
+      event: 'call_miss',
+      traceId,
+      query: retrieve.query,
+      tool: toolName,
+      shortlisted: [...retrieve.tools],
+    });
+  }
+  const startedAt = performance.now();
+  const semaphore = index.semaphores.get(serverId);
+  if (semaphore !== undefined) await semaphore.acquire();
   try {
-    return await target.client.callTool({ name: target.bareName, arguments: args });
+    const result = await withTimeout(
+      target.client.callTool({ name: target.bareName, arguments: args }),
+      timeoutMs,
+      `call to "${toolName}" timed out after ${timeoutMs}ms`,
+    );
+    circuit?.recordSuccess();
+    auditLog({
+      event: 'call',
+      traceId,
+      tool: toolName,
+      serverId,
+      wasShortlisted,
+      rank,
+      ok: true,
+      latencyMs: Math.round(performance.now() - startedAt),
+    });
+    return result;
   } catch (e) {
-    return errorResult(`call to "${toolName}" failed: ${(e as Error).message}`);
+    circuit?.recordFailure();
+    auditLog({
+      event: 'call',
+      traceId,
+      tool: toolName,
+      serverId,
+      wasShortlisted,
+      rank,
+      ok: false,
+      latencyMs: Math.round(performance.now() - startedAt),
+      error: (e as Error).message,
+      errorCategory: (e as Error).message.includes('timed out') ? 'timeout' : 'downstream_error',
+    });
+    return errorResult((e as Error).message.startsWith('call to ') ? (e as Error).message : `call to "${toolName}" failed: ${(e as Error).message}`);
+  } finally {
+    semaphore?.release();
   }
 }
 
@@ -225,8 +551,9 @@ export async function forwardCall(index: FederatedIndex, toolName: string, args:
  * host-agnostic, two static tools, no dynamic tool-list. Transport connected by
  * the bin (P2-5).
  */
-export function createServerFromIndex(index: FederatedIndex, opts: { k?: number } = {}): Server {
+export function createServerFromIndex(index: FederatedIndex, opts: { k?: number; maxK?: number } = {}): Server {
   const defaultK = opts.k ?? 8;
+  const maxK = opts.maxK ?? index.maxK ?? DEFAULT_MAX_K;
   const server = new Server({ name: 'quartermaster-mcp', version: PACKAGE_VERSION }, { capabilities: { tools: {} } });
 
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
@@ -234,9 +561,9 @@ export function createServerFromIndex(index: FederatedIndex, opts: { k?: number 
       {
         name: 'retrieve_tools',
         description:
-          'Find the most relevant tools for a natural-language task. Returns a ranked, ' +
+          'REQUIRED first step: find the most relevant tools for a natural-language task. Returns a ranked, ' +
           'confidence-annotated shortlist with descriptions AND input schemas — read it, then call the ' +
-          'tool you need via call_tool. Use this instead of loading every tool up front.',
+          'tool you need via call_tool. Always call this before call_tool.',
         inputSchema: {
           type: 'object',
           properties: {
@@ -256,6 +583,7 @@ export function createServerFromIndex(index: FederatedIndex, opts: { k?: number 
           properties: {
             name: { type: 'string', description: 'Namespaced tool name from retrieve_tools (server.tool).' },
             arguments: { type: 'object', description: "Arguments matching that tool's inputSchema." },
+            traceId: { type: 'string', description: 'traceId from retrieve_tools — links this call to the correct shortlist.' },
           },
           required: ['name'],
         },
@@ -277,10 +605,26 @@ export function createServerFromIndex(index: FederatedIndex, opts: { k?: number 
         return errorResult('retrieve_tools: `query` (non-empty string) is required.');
       }
       const kRaw = (args as Record<string, unknown>).k;
-      const k = typeof kRaw === 'number' && kRaw > 0 ? Math.floor(kRaw) : defaultK;
+      const k = clampK(kRaw, defaultK, maxK);
+      const startedAt = performance.now();
+      const traceId = randomUUID();
       const result = retrieveTools(index.router, query, k, index.schemas);
+      storeRetrieveTrace(index, { query, tools: result.candidates.map((c) => c.tool), traceId });
       debugRetrieve(index.router, query, k, result);
-      return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }] };
+      auditRetrieve(
+        traceId,
+        query,
+        k,
+        result,
+        {
+          totalTools: index.toolToServer.size,
+          catalogTools: index.catalogTools,
+          schemas: index.schemas,
+          pricing: index.pricing,
+        },
+        startedAt,
+      );
+      return { content: [{ type: 'text' as const, text: JSON.stringify({ ...result, traceId }, null, 2) }] };
     }
     if (req.params.name === 'call_tool') {
       const toolName = (args as Record<string, unknown>).name;
@@ -288,7 +632,10 @@ export function createServerFromIndex(index: FederatedIndex, opts: { k?: number 
         return errorResult('call_tool: `name` (the namespaced server.tool string) is required.');
       }
       const toolArgs = (args as Record<string, unknown>).arguments;
-      return forwardCall(index, toolName, (toolArgs ?? {}) as Record<string, unknown>);
+      const explicitTraceId = (args as Record<string, unknown>).traceId;
+      return forwardCall(index, toolName, (toolArgs ?? {}) as Record<string, unknown>, {
+        traceId: typeof explicitTraceId === 'string' ? explicitTraceId : undefined,
+      });
     }
     if (req.params.name === 'list_servers') {
       const payload = listServersPayload(index);
@@ -351,6 +698,7 @@ export async function closeIndex(index: FederatedIndex): Promise<void> {
  * static mode when it has `tools`.
  */
 export async function startFromConfig(configPath: string): Promise<void> {
+  initAudit();
   const config = loadConfig(configPath);
   const federated = (config.servers?.length ?? 0) > 0;
   let server: Server;
@@ -365,18 +713,24 @@ export async function startFromConfig(configPath: string): Promise<void> {
   };
   if (federated) {
     const index = await buildToolIndex(config);
-    server = createServerFromIndex(index, { k: config.k });
+    server = createServerFromIndex(index, { k: config.k, maxK: config.maxK });
     process.once('SIGINT', () => shutdown(index));
     process.once('SIGTERM', () => shutdown(index));
     if (config.refreshIntervalMs !== undefined) {
       refreshTimer = setInterval(() => {
-        void refreshToolIndex(index, config).then((report) => {
-          if (report.errors.length > 0) {
-            console.error(`quartermaster: tools/list refresh errors — ${report.errors.join('; ')}`);
+        void maintainToolIndex(index, config).then(({ retry, refresh }) => {
+          if (retry.connected.length > 0) {
+            console.error(`quartermaster: reconnected skipped server(s) — ${retry.connected.join(', ')}`);
           }
-          if (report.added.length > 0 || report.removed.length > 0) {
+          if (retry.errors.length > 0) {
+            console.error(`quartermaster: reconnect errors — ${retry.errors.join('; ')}`);
+          }
+          if (refresh.errors.length > 0) {
+            console.error(`quartermaster: tools/list refresh errors — ${refresh.errors.join('; ')}`);
+          }
+          if (refresh.added.length > 0 || refresh.removed.length > 0) {
             console.error(
-              `quartermaster: index refreshed (+${report.added.length} -${report.removed.length} tools)`,
+              `quartermaster: index refreshed (+${refresh.added.length} -${refresh.removed.length} tools)`,
             );
           }
         });

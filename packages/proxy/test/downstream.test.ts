@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { applyOverlays, buildToolIndex, interpolateEnv, namespaceTools } from '../dist/index.js'; // built dist — see proxy.test.ts note
+import { applyOverlays, buildToolIndex, carryForwardServerSnapshot, interpolateEnv, namespaceTools } from '../dist/index.js'; // built dist — see proxy.test.ts note
+import { buildStaticRouter } from '../dist/index.js';
 
 test('applyOverlays merges keyword overlays into the matching tool only', () => {
   const tools = [
@@ -45,6 +46,27 @@ test('buildToolIndex fails loud when no servers are configured', async () => {
   await assert.rejects(() => buildToolIndex({ servers: [] }), /no servers configured/);
 });
 
-// A real spawn + tools/list aggregation test (with a fake downstream fixture)
-// lands in P2-6 (integration). Here we cover the pure namespacing + the
-// fail-loud guards.
+test('carryForwardServerSnapshot preserves a failed server tools in a rebuild buffer', () => {
+  const tools = namespaceTools('alpha', [{ name: 'tool_a', description: 'A' }]);
+  const index = {
+    router: buildStaticRouter({ tools }),
+    clients: new Map(),
+    toolToServer: new Map([['alpha.tool_a', 'alpha']]),
+    toolToBare: new Map([['alpha.tool_a', 'tool_a']]),
+    schemas: new Map([['alpha.tool_a', { type: 'object' }]]),
+    lastKnownTools: new Map([['alpha', tools]]),
+    skippedServers: [],
+    configuredServerCount: 1,
+    callTimeoutMs: 30_000,
+    maxK: 50,
+  };
+  const allTools: typeof tools = [];
+  const toolToServer = new Map<string, string>();
+  const toolToBare = new Map<string, string>();
+  const schemas = new Map<string, unknown>();
+  carryForwardServerSnapshot(index, 'alpha', allTools, toolToServer, toolToBare, schemas);
+  assert.equal(allTools[0]?.name, 'alpha.tool_a');
+  assert.equal(toolToServer.get('alpha.tool_a'), 'alpha');
+  assert.equal(toolToBare.get('alpha.tool_a'), 'tool_a');
+  assert.ok(schemas.has('alpha.tool_a'));
+});

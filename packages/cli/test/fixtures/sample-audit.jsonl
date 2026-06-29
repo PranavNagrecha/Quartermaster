@@ -1,0 +1,6 @@
+{"event":"retrieve","traceId":"t1","ts":1,"query":"file a bug","confidence":"high","candidates":[{"tool":"github.create_issue","score":1.2},{"tool":"github.search_code","score":0.8}],"estimatedTokenSavings":100,"estimatedCostSavingsUsd":0.01}
+{"event":"call","traceId":"t1","ts":2,"tool":"github.create_issue","ok":true,"rank":1}
+{"event":"retrieve","traceId":"t2","ts":3,"query":"dm sales","confidence":"low","candidates":[{"tool":"github.create_issue","score":0.5},{"tool":"slack.post_message","score":0.4}]}
+{"event":"call_miss","traceId":"t2","ts":4,"tool":"slack.post_message","query":"dm sales","shortlisted":["github.create_issue"]}
+{"event":"retrieve","traceId":"t3","ts":5,"query":"schedule meeting","confidence":"high","candidates":[{"tool":"calendar.create_event","score":1.0},{"tool":"github.create_issue","score":0.2}],"estimatedTokenSavings":80}
+{"event":"call","traceId":"t3","ts":6,"tool":"calendar.create_event","ok":true,"rank":1}
