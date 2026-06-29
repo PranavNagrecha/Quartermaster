@@ -1,0 +1,10 @@
+{"query":"open and read a local file","expectedTool":"filesystem.read_file"}
+{"query":"what files are in this folder","expectedTool":"filesystem.list_directory"}
+{"query":"find files matching a pattern under a folder","expectedTool":"filesystem.search_files"}
+{"query":"show the folder structure as a tree","expectedTool":"filesystem.directory_tree"}
+{"query":"save my work to version control","expectedTool":"git.git_commit"}
+{"query":"what have I changed but not staged yet","expectedTool":"git.git_diff_unstaged"}
+{"query":"see the history of changes","expectedTool":"git.git_log"}
+{"query":"which files have I modified","expectedTool":"git.git_status"}
+{"query":"switch to a different branch","expectedTool":"git.git_checkout"}
+{"query":"start a new branch locally","expectedTool":"git.git_create_branch"}

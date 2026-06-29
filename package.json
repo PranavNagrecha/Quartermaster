@@ -26,6 +26,9 @@
     "smoke:local": "node examples/smoke/run-smoke.mjs --local",
     "stress": "node examples/stress/run-stress.mjs",
     "stress:quick": "node examples/stress/run-stress.mjs --quick",
-    "stress:ci": "node examples/stress/run-stress.mjs --ci"
+    "stress:ci": "node examples/stress/run-stress.mjs --ci",
+    "regression": "node examples/regression/run-regression.mjs",
+    "regression:ci": "node examples/regression/run-regression.mjs --ci",
+    "regression:local": "node examples/regression/run-regression.mjs --local"
   }
 }

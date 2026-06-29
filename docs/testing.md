@@ -14,10 +14,12 @@ Layered playbook for validating the product end-to-end. The **npm consumer path*
 | Published npm (consumer) | `pnpm smoke:npx` |
 | Stress test (full) | `pnpm stress` |
 | Stress test (quick) | `pnpm stress:quick` |
+| **Regression (2 rounds)** | `pnpm regression` |
+| Regression (local bins) | `pnpm regression:local` |
 | Optional GitHub+Slack eval | `node examples/smoke/run-gjs-eval.mjs` |
 
-Automated smoke federates **real public MCP servers** (filesystem, memory,
-everything, optional git): doctor, eval, MCP protocol, and the audit CLI loop.
+Automated smoke federates the **dev workbench** (filesystem, memory, everything,
+thinking, git). Regression runs smoke + stress **twice** and checks R@8 stability.
 
 ---
 
@@ -192,18 +194,28 @@ Hammer ranker scale, MCP federation, concurrency, and chaos. See
 [`examples/stress/README.md`](../examples/stress/README.md).
 
 ```bash
-pnpm stress           # full (~7s): 2000 ranker ops, 1000-tool static MCP, real federation
+pnpm stress           # full (~7s)
 pnpm stress:quick     # dev subset
-pnpm stress:ci        # CI gates (runs in GitHub Actions)
+pnpm stress:ci        # CI gates
 ```
 
-| Scenario | Load |
-|----------|------|
-| Ranker @ 171 / 500 / 1000 tools | 2000 in-process routes, latency p99 gates |
-| Static MCP @ 1000 tools | 150 concurrent `retrieve_tools` over stdio |
-| Real federation | 4 public servers, 150 parallel retrieves + 60 `call_tool` forwards |
-| Chaos | echo + flaky downstream, circuit breaker, 80 mixed calls |
-| Memory | 1000 routes, heap growth &lt; 80MB |
+---
+
+## Regression (2× smoke + 2× stress)
+
+What a dev team runs before release — full suite **twice**, compare metrics.
+See [`examples/regression/README.md`](../examples/regression/README.md).
+
+```bash
+pnpm regression           # 2× pack smoke + 2× stress + eval (~50s)
+pnpm regression:local     # repo bins
+pnpm regression:ci        # GitHub Actions
+```
+
+Each round: dev workbench smoke, stress, dev-workbench eval, blind-manifest eval
+(`bench/cases/real-mcp-blind.json`). Round 1 vs 2 must agree on **R@8** and pass/fail.
+
+Report: `examples/regression/results/latest.json`
 
 ---
 
@@ -212,9 +224,7 @@ pnpm stress:ci        # CI gates (runs in GitHub Actions)
 [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) runs:
 
 1. build, lint, test, bench
-2. `pnpm smoke` (real MCP servers + pack consumer path)
-3. `pnpm stress:ci`
-4. eval gate on CLI fixtures (`--min-r8 0.5`)
+2. `pnpm regression:ci` (2× smoke + 2× stress + eval stability)
 
 ---
 

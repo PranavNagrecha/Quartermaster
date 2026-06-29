@@ -1,17 +1,19 @@
 # Product smoke tests
 
-End-to-end validation using **real public MCP servers** — no fake echo fixtures, no API keys.
+End-to-end validation using **real public MCP servers** — a typical **dev workbench**
+stack (no API keys, no Jira/Slack required).
 
-## Federated downstreams (default)
+## Dev workbench (default)
 
 | Server | Package | Auth |
 |--------|---------|------|
 | filesystem | `@modelcontextprotocol/server-filesystem` | None |
 | memory | `@modelcontextprotocol/server-memory` | None |
 | everything | `@modelcontextprotocol/server-everything` | None |
-| git (optional) | `uvx mcp-server-git` | None (local repo) |
+| thinking | `@modelcontextprotocol/server-sequential-thinking` | None |
+| git | `uvx mcp-server-git` | None (local repo) |
 
-Git is included when `uvx` is on PATH (CI/Linux may skip it).
+Git is included when `uvx` is on PATH.
 
 ## Scripts
 
@@ -33,7 +35,7 @@ pnpm smoke:npx      # npx quartermaster-mcp from npm registry
 
 ## Fixtures
 
-- [`eval-cases-real-servers.jsonl`](eval-cases-real-servers.jsonl) — labeled queries across filesystem, memory, everything, git
+- [`eval-cases-dev-workbench.jsonl`](../regression/eval-cases-dev-workbench.jsonl) — colloquial dev queries
 - [`cursor-mcp.json.example`](cursor-mcp.json.example) — Cursor host wiring
 - [`CURSOR-E2E.md`](CURSOR-E2E.md) — manual host scenarios
 

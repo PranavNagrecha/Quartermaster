@@ -18,5 +18,6 @@ Reproduce the published benchmark numbers: [`docs/benchmarks.md`](../docs/benchm
 (`pnpm bench` from the repo root; `pnpm bench:regen` to rewrite synthetic fixtures).
 
 - [`github-jira-slack/`](github-jira-slack/) — multi-server config + query → shortlist transcript.
-- [`smoke/`](smoke/) — product smoke tests (`pnpm smoke`); see [docs/testing.md](../docs/testing.md).
-- [`stress/`](stress/) — load and chaos tests (`pnpm stress`).
+- [`smoke/`](smoke/) — dev workbench smoke (`pnpm smoke`)
+- [`stress/`](stress/) — load and chaos tests (`pnpm stress`)
+- [`regression/`](regression/) — 2× smoke + 2× stress + eval stability (`pnpm regression`)

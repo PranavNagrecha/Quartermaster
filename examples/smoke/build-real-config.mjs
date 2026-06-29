@@ -1,6 +1,6 @@
 /**
- * Build quartermaster.json configs that federate real public MCP servers (npx / uvx).
- * No API keys required for the default set.
+ * Dev workbench configs — real public MCP servers engineers run locally (no API keys).
+ * filesystem + memory + everything + sequential-thinking + git (uvx when available)
  */
 import { realpathSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
@@ -15,9 +15,9 @@ export function hasUvx() {
 
 /**
  * @param {string} dir
- * @param {{ repoRoot?: string; includeGit?: boolean }} [opts]
+ * @param {{ repoRoot?: string; includeGit?: boolean; includeThinking?: boolean }} [opts]
  */
-export function writeRealServersConfig(dir, opts = {}) {
+export function writeDevWorkbenchConfig(dir, opts = {}) {
   const repoRoot = opts.repoRoot ?? process.cwd();
   const fsRoot = realpathSync(tmpdir());
   const servers = [
@@ -38,6 +38,14 @@ export function writeRealServersConfig(dir, opts = {}) {
     },
   ];
 
+  if (opts.includeThinking !== false) {
+    servers.push({
+      id: 'thinking',
+      command: 'npx',
+      args: ['-y', '@modelcontextprotocol/server-sequential-thinking'],
+    });
+  }
+
   const includeGit = opts.includeGit ?? hasUvx();
   if (includeGit) {
     servers.push({
@@ -47,7 +55,7 @@ export function writeRealServersConfig(dir, opts = {}) {
     });
   }
 
-  const configPath = join(dir, 'quartermaster-real.json');
+  const configPath = join(dir, 'quartermaster-dev.json');
   writeFileSync(
     configPath,
     JSON.stringify(
@@ -56,9 +64,12 @@ export function writeRealServersConfig(dir, opts = {}) {
         synonyms: {
           folder: ['directory'],
           file: ['read'],
-          remember: ['memory', 'store'],
+          remember: ['memory', 'store', 'note'],
           branch: ['git'],
           commit: ['history', 'log'],
+          debug: ['think', 'step'],
+          refactor: ['think', 'plan'],
+          todo: ['search', 'find'],
         },
         k: 8,
       },
@@ -68,4 +79,14 @@ export function writeRealServersConfig(dir, opts = {}) {
   );
 
   return { configPath, fsRoot, serverIds: servers.map((s) => s.id), includeGit };
+}
+
+/** @deprecated alias */
+export const writeRealServersConfig = writeDevWorkbenchConfig;
+
+/** Static manifest for ranker regression (no live GitHub/fetch). */
+export function writeBlindManifestConfig(dir, tools) {
+  const configPath = join(dir, 'quartermaster-blind.json');
+  writeFileSync(configPath, JSON.stringify({ tools, k: 8 }, null, 2));
+  return configPath;
 }

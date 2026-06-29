@@ -24,7 +24,7 @@ pnpm smoke    # product smoke (npm pack consumer path)
 ## Before you open a PR
 
 - `pnpm -r build && pnpm -r test` pass.
-- `pnpm smoke` passes (product smoke — see [docs/testing.md](docs/testing.md)).
+- `pnpm smoke` passes (or `pnpm regression:ci` in CI).
 - If you touched ranking, run `pnpm bench` (or `pnpm bench:regen` to rewrite synthetic fixtures) and put recall@K before→after in the PR.
 - Keep new public API documented in the package README.
 

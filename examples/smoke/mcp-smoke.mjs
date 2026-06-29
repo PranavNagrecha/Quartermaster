@@ -111,6 +111,18 @@ async function runRealProtocolChecks(client, serverIds, fsRoot) {
     `everything.echo ranked: ${echoPayload.candidates.slice(0, 5).map((c) => c.tool).join(', ')}`,
   );
 
+  if (serverIds.includes('thinking')) {
+    const thinkRetrieve = await client.callTool({
+      name: 'retrieve_tools',
+      arguments: { query: 'think through this step by step' },
+    });
+    const thinkPayload = JSON.parse(textOf(thinkRetrieve));
+    assert.ok(
+      thinkPayload.candidates.some((c) => c.tool === 'thinking.sequentialthinking'),
+      `thinking tool ranked: ${thinkPayload.candidates.slice(0, 5).map((c) => c.tool).join(', ')}`,
+    );
+  }
+
   const servers = await client.callTool({ name: 'list_servers', arguments: {} });
   const serverPayload = JSON.parse(textOf(servers));
   assert.equal(serverPayload.degraded, false, 'federation not degraded');

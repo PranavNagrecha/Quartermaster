@@ -13,7 +13,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { performance } from 'node:perf_hooks';
 import { createRouter } from '../../packages/core/dist/index.js';
-import { writeRealServersConfig } from '../smoke/build-real-config.mjs';
+import { writeDevWorkbenchConfig } from '../smoke/build-real-config.mjs';
 import { generateTools, loadBenchFixture, STRESS_QUERIES } from './lib/corpus.mjs';
 import { callNamespaced, connectMcp, retrieveTools } from './lib/mcp.mjs';
 import { assertMax, formatStats, summarize } from './lib/stats.mjs';
@@ -24,9 +24,16 @@ const PROXY_BIN = join(REPO, 'packages', 'proxy', 'bin', 'quartermaster-mcp.js')
 const ECHO = join(REPO, 'packages', 'proxy', 'test', 'fixtures', 'echo-mcp-server.mjs');
 const FLAKY = join(REPO, 'packages', 'proxy', 'test', 'fixtures', 'flaky-mcp-server.mjs');
 
-const flags = new Set(process.argv.slice(2));
+const flags = new Set(process.argv.filter((a) => a.startsWith('--')));
 const quick = flags.has('--quick');
 const ci = flags.has('--ci');
+
+function argvValue(name) {
+  const i = process.argv.indexOf(name);
+  return i >= 0 && process.argv[i + 1] ? process.argv[i + 1] : undefined;
+}
+
+const metricsOut = argvValue('--metrics-out');
 
 const SCALE = {
   rankerOps: quick ? 200 : ci ? 500 : 2000,
@@ -177,7 +184,7 @@ async function stressStaticMcp() {
 async function stressRealFederation() {
   const workDir = mkdtempSync(join(tmpdir(), 'qm-stress-real-'));
   try {
-    const { configPath, fsRoot, serverIds } = writeRealServersConfig(workDir, { repoRoot: REPO });
+    const { configPath, fsRoot, serverIds } = writeDevWorkbenchConfig(workDir, { repoRoot: REPO });
     const { client, close } = await connectMcp({
       command: process.execPath,
       args: [PROXY_BIN, '--config', configPath],
@@ -283,20 +290,46 @@ async function stressMemoryStability() {
 }
 
 async function main() {
+  const started = performance.now();
   const mode = quick ? 'quick' : ci ? 'ci' : 'full';
   console.log(`quartermaster stress test (${mode})\n`);
 
-  await stressRankerInProcess();
-  await stressStaticMcp();
-  await stressRealFederation();
-  await stressChaosFederation();
-  await stressMemoryStability();
+  try {
+    await stressRankerInProcess();
+    await stressStaticMcp();
+    await stressRealFederation();
+    await stressChaosFederation();
+    await stressMemoryStability();
 
-  const failed = results.filter((r) => !r.ok);
-  console.log(`\n--- ${results.length - failed.length}/${results.length} passed ---`);
-  if (failed.length > 0) {
-    process.exit(1);
+    const failed = results.filter((r) => !r.ok);
+    console.log(`\n--- ${results.length - failed.length}/${results.length} passed ---`);
+    if (failed.length > 0) process.exit(1);
+  } finally {
+    if (metricsOut) {
+      const federation = results.find((r) => r.name === 'mcp/real-federation');
+      writeFileSync(
+        metricsOut,
+        JSON.stringify(
+          {
+            suite: 'stress',
+            passed: results.every((r) => r.ok),
+            durationMs: Math.round(performance.now() - started),
+            mode,
+            scenarios: results,
+            p99Ms: parseP99FromDetail(federation?.detail),
+          },
+          null,
+          2,
+        ) + '\n',
+      );
+    }
   }
+}
+
+function parseP99FromDetail(detail) {
+  if (!detail) return null;
+  const m = /retrieve:.*?p99=(\d+(?:\.\d+)?)ms/.exec(detail);
+  return m ? Number(m[1]) : null;
 }
 
 main().catch((err) => {

@@ -1,0 +1,3 @@
+# Keep directory; latest.json is written by pnpm regression
+*.json
+!.gitkeep
