@@ -97,7 +97,12 @@ function cliRun(bins, args, opts = {}) {
 async function main() {
   const started = performance.now();
   const workDir = mkdtempSync(join(tmpdir(), 'qm-smoke-'));
-  const { configPath, fsRoot, serverIds, includeGit } = writeDevWorkbenchConfig(workDir, { repoRoot: REPO });
+  const { configPath, fsRoot, serverIds, includeGit, synonymsFile } = writeDevWorkbenchConfig(workDir, {
+    repoRoot: REPO,
+  });
+  const cfg = JSON.parse(readFileSync(configPath, 'utf8'));
+  assert.equal(cfg.synonymsFile, './business-to-dev.json');
+  assert.ok(readFileSync(synonymsFile, 'utf8').includes('"folder"'));
   const casesPath = join(workDir, 'eval-cases.jsonl');
   writeFileSync(casesPath, filterEvalCases(includeGit));
   const auditPath = join(workDir, 'audit.jsonl');

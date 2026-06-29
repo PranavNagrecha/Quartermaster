@@ -1,0 +1,36 @@
+{
+  "servers": [
+    {
+      "id": "filesystem",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"]
+    },
+    {
+      "id": "memory",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-memory"]
+    },
+    {
+      "id": "everything",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-everything"]
+    },
+    {
+      "id": "thinking",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
+    },
+    {
+      "id": "git",
+      "command": "uvx",
+      "args": ["mcp-server-git", "--repository", "."]
+    }
+  ],
+  "synonymsFile": "./business-to-dev.json",
+  "synonyms": {
+    "remember": ["memory", "store", "note"],
+    "think": ["sequential", "step", "reason"]
+  },
+  "ranker": { "expansionWeight": 0.5 },
+  "k": 8
+}

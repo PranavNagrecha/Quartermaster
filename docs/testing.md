@@ -19,7 +19,9 @@ Layered playbook for validating the product end-to-end. The **npm consumer path*
 | Optional GitHub+Slack eval | `node examples/smoke/run-gjs-eval.mjs` |
 
 Automated smoke federates the **dev workbench** (filesystem, memory, everything,
-thinking, git). Regression runs smoke + stress **twice** and checks R@8 stability.
+thinking, git) with starter `synonymsFile` (`business-to-dev.json`) plus org
+synonyms. Regression runs smoke + stress **twice**, audit-loop replay, and checks
+R@8 stability.
 
 ---
 
@@ -44,12 +46,12 @@ MCP protocol over in-memory transport.
 
 ## Layer 2: npm consumer smoke (~10 min)
 
-Validates the **published package** from a clean environment.
+Validates the **published package** from a clean environment against the dev workbench.
 
 ```bash
-mkdir -p /tmp/qm-smoke && cd /tmp/qm-smoke
-pnpm smoke:npx   # from repo root, or:
-node /path/to/quartermaster/examples/smoke/run-smoke.mjs --npx
+pnpm smoke:npx   # from repo root
+# or:
+node examples/smoke/run-smoke.mjs --npx
 ```
 
 From CI / pre-publish, use the pack path (installs `npm pack` tarball):
@@ -60,11 +62,17 @@ pnpm smoke
 
 **Pass criteria:**
 - `--version` prints a semver
-- `--validate --config` succeeds
-- `quartermaster doctor` reports downstreams connected
-- `quartermaster eval --ci --min-r8 0.5` passes on echo cases
+- `--validate --config` succeeds on dev workbench config
+- `quartermaster doctor` reports all downstreams connected
+- `quartermaster eval --ci --min-r8 0.5` passes on dev workbench cases
+- MCP protocol checklist + audit CLI loop
 
-Fixtures live in [`examples/smoke/`](../examples/smoke/).
+Config is generated with `synonymsFile: ./business-to-dev.json` (starter pack)
+and small inline org synonyms. Template:
+[`examples/smoke/quartermaster-dev-workbench.json`](../examples/smoke/quartermaster-dev-workbench.json).
+
+Fixtures: [`examples/smoke/`](../examples/smoke/), eval cases in
+[`examples/regression/eval-cases-dev-workbench.jsonl`](../examples/regression/eval-cases-dev-workbench.jsonl).
 
 ---
 
@@ -77,14 +85,49 @@ pnpm -r build
 node examples/static-demo/demo.mjs
 ```
 
-### Eval gate with labeled cases
+### Dev workbench eval (live MCP)
+
+```bash
+pnpm -r build
+node examples/smoke/run-smoke.mjs --local
+# or manually after build-real-config writes a temp config:
+pnpm quartermaster eval \
+  --ci --min-r8 0.5 \
+  --config /path/to/quartermaster-dev.json \
+  --cases examples/regression/eval-cases-dev-workbench.jsonl
+```
+
+### Blind manifest (untuned floor)
+
+Static tools from `bench/cases/real-mcp-blind.json`, **no synonyms** — honest
+baseline before per-team tuning:
 
 ```bash
 pnpm quartermaster eval \
-  --ci --min-r8 0.5 \
-  --config examples/smoke/quartermaster-echo-generated.json \
-  --cases examples/smoke/eval-cases-echo.jsonl
+  --ci --min-r8 0.45 \
+  --config <blind-config.json> \
+  --cases examples/regression/eval-cases-blind-manifest.jsonl
 ```
+
+Regression builds this config automatically each round.
+
+### Full benchmarks
+
+```bash
+pnpm bench
+```
+
+Heritage 171-tool corpus (~91% R@8). Required before ranker/synonym changes —
+see [CONTRIBUTING.md](../CONTRIBUTING.md).
+
+### Per-team tuning loop
+
+1. Copy [`examples/synonyms/business-to-dev.json`](../examples/synonyms/business-to-dev.json)
+   beside your `quartermaster.json` and set `"synonymsFile": "./business-to-dev.json"`.
+2. Add org-specific inline `synonyms` for terms your team uses.
+3. Run real work in Cursor with `QM_AUDIT=1`.
+4. `quartermaster eval --from-audit audit.jsonl --draft-cases cases.jsonl`
+5. Fix weak cases (synonyms, tool descriptions), re-run `eval --ci`.
 
 For GitHub + Slack (requires tokens):
 
@@ -94,27 +137,16 @@ export SLACK_TOKEN=...
 node examples/smoke/run-gjs-eval.mjs
 ```
 
-### Full benchmarks
-
-```bash
-pnpm bench
-```
-
-Required before ranker/synonym changes — see [CONTRIBUTING.md](../CONTRIBUTING.md).
-
 ---
 
 ## Layer 4: MCP protocol E2E without an LLM (~15 min)
 
-Scripted five-step checklist via stdio:
+Scripted five-step checklist via stdio over the **dev workbench**:
 
 ```bash
-# Echo fixture (no API keys)
-QM_SMOKE_MODE=echo pnpm smoke:local
-
-# Filesystem downstream (uses os.tmpdir(), realpath-safe on macOS)
-QM_SMOKE_MODE=filesystem QM_FILESYSTEM_CONFIG=... QM_FILESYSTEM_ROOT=... \
-  node examples/smoke/mcp-smoke.mjs
+pnpm smoke:local
+# or:
+node examples/smoke/mcp-smoke.mjs   # with QM_REAL_CONFIG set by run-smoke.mjs
 ```
 
 Or run the full orchestrator: `pnpm smoke`.
@@ -156,9 +188,10 @@ and [`docs/recipes/cursor.md`](recipes/cursor.md).
 
 1. Copy [`examples/smoke/cursor-mcp.json.example`](../examples/smoke/cursor-mcp.json.example)
    into `~/.cursor/mcp.json` with absolute paths.
-2. Set `QM_AUDIT=1` and `QM_AUDIT_FILE`.
-3. Restart Cursor — confirm **3 meta-tools** in the MCP panel.
-4. Run the five scenarios in CURSOR-E2E.md.
+2. Point config at `synonymsFile` + org synonyms (see dev workbench template).
+3. Set `QM_AUDIT=1` and `QM_AUDIT_FILE`.
+4. Restart Cursor — confirm **3 meta-tools** in the MCP panel.
+5. Run the five scenarios in CURSOR-E2E.md.
 
 ---
 
@@ -175,7 +208,8 @@ npx -p quartermaster-mcp quartermaster eval \
 npx -p quartermaster-mcp quartermaster dashboard --audit audit.jsonl
 ```
 
-Automated: `examples/smoke/audit-cli-smoke.mjs` (run via `pnpm smoke`).
+Automated: `examples/smoke/audit-cli-smoke.mjs` (via `pnpm smoke`) and
+`examples/regression/lib/audit-loop.mjs` (via `pnpm regression`).
 
 ---
 
@@ -207,13 +241,13 @@ What a dev team runs before release — full suite **twice**, compare metrics.
 See [`examples/regression/README.md`](../examples/regression/README.md).
 
 ```bash
-pnpm regression           # 2× pack smoke + 2× stress + eval (~50s)
+pnpm regression           # audit loop + 2× pack smoke + 2× stress + eval (~50s)
 pnpm regression:local     # repo bins
 pnpm regression:ci        # GitHub Actions
 ```
 
-Each round: dev workbench smoke, stress, dev-workbench eval, blind-manifest eval
-(`bench/cases/real-mcp-blind.json`). Round 1 vs 2 must agree on **R@8** and pass/fail.
+Each round: dev workbench smoke, stress, dev-workbench eval (with `synonymsFile`),
+blind-manifest eval (no synonyms). Round 1 vs 2 must agree on **R@8** and pass/fail.
 
 Report: `examples/regression/results/latest.json`
 
@@ -224,7 +258,7 @@ Report: `examples/regression/results/latest.json`
 [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) runs:
 
 1. build, lint, test, bench
-2. `pnpm regression:ci` (2× smoke + 2× stress + eval stability)
+2. `pnpm regression:ci` (audit loop + 2× smoke + 2× stress + eval stability)
 
 ---
 
@@ -233,10 +267,12 @@ Report: `examples/regression/results/latest.json`
 - [ ] `pnpm -r build && pnpm -r test && pnpm bench -- --ci` green
 - [ ] `cd packages/proxy && pnpm publish --dry-run`
 - [ ] `pnpm smoke` and `pnpm smoke:npx` pass
+- [ ] `pnpm regression` passes (2 rounds stable)
 - [ ] `pnpm stress` passes
-- [ ] `quartermaster doctor` clean on example configs
-- [ ] `quartermaster eval --ci --min-r8 0.5` passes
+- [ ] `quartermaster doctor` clean on dev workbench config
+- [ ] `quartermaster eval --ci --min-r8 0.5` on dev workbench cases
 - [ ] Cursor E2E: 3 meta-tools visible, retrieve+call round-trip
 - [ ] `quartermaster report` + `savings` on sample audit traffic
+- [ ] `synonymsFile` + org synonyms documented for your team
 - [ ] Update Dockerfile pinned version if applicable
 - [ ] Optional: `node examples/smoke/run-gjs-eval.mjs` with live tokens

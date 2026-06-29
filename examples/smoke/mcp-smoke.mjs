@@ -69,16 +69,45 @@ function resolveLaunch(configPath) {
 
 const textOf = (res) => res.content?.[0]?.text ?? '';
 
+async function waitForFederation(client, serverIds, timeoutMs = 90_000) {
+  const deadline = Date.now() + timeoutMs;
+  let lastPayload;
+  while (Date.now() < deadline) {
+    const servers = await client.callTool({ name: 'list_servers', arguments: {} });
+    lastPayload = JSON.parse(textOf(servers));
+    const ids = new Set((lastPayload.servers ?? []).map((s) => s.id));
+    const ready =
+      lastPayload.degraded === false && serverIds.every((id) => ids.has(id));
+    if (ready) return lastPayload;
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  throw new Error(
+    `federation not ready after ${timeoutMs}ms (want [${serverIds.join(', ')}], got ${JSON.stringify(lastPayload)})`,
+  );
+}
+
+async function retrieveTopTools(client, query, k = 8) {
+  const res = await client.callTool({ name: 'retrieve_tools', arguments: { query, k } });
+  if (res.isError === true) {
+    throw new Error(`retrieve_tools failed for "${query}": ${textOf(res)}`);
+  }
+  const payload = JSON.parse(textOf(res));
+  const top = (payload.candidates ?? []).slice(0, k).map((c) => c.tool);
+  if (top.length === 0) {
+    throw new Error(
+      `retrieve_tools returned no candidates for "${query}" (confidence=${payload.confidence ?? 'unknown'})`,
+    );
+  }
+  return { payload, top };
+}
+
 async function runRealProtocolChecks(client, serverIds, fsRoot) {
   const names = (await client.listTools()).tools.map((t) => t.name).sort();
   assert.deepEqual(names, ['call_tool', 'list_servers', 'retrieve_tools'], 'meta-tools');
 
-  const listFiles = await client.callTool({
-    name: 'retrieve_tools',
-    arguments: { query: 'what files are in this folder' },
-  });
-  const fsPayload = JSON.parse(textOf(listFiles));
-  const fsTop = fsPayload.candidates.slice(0, 8).map((c) => c.tool);
+  await waitForFederation(client, serverIds);
+
+  const { top: fsTop } = await retrieveTopTools(client, 'what files are in this folder');
   assert.ok(
     fsTop.some((t) => t === 'filesystem.list_directory' || t === 'filesystem.directory_tree'),
     `filesystem list tool in top-8: ${fsTop.join(', ')}`,
@@ -90,33 +119,20 @@ async function runRealProtocolChecks(client, serverIds, fsRoot) {
   });
   assert.notEqual(listDir.isError, true, `list_directory: ${textOf(listDir)}`);
 
-  const memoryRetrieve = await client.callTool({
-    name: 'retrieve_tools',
-    arguments: { query: 'remember a fact about the user' },
-  });
-  const memPayload = JSON.parse(textOf(memoryRetrieve));
-  const memTop = memPayload.candidates.slice(0, 8).map((c) => c.tool);
-  assert.ok(
-    memTop.some((t) => t.startsWith('memory.')),
-    `memory tool in top-8: ${memTop.join(', ')}`,
-  );
+  const { top: memTop } = await retrieveTopTools(client, 'remember the API listens on port 3000');
+  assert.ok(memTop.some((t) => t.startsWith('memory.')), `memory tool in top-8: ${memTop.join(', ')}`);
 
-  const echoRetrieve = await client.callTool({
-    name: 'retrieve_tools',
-    arguments: { query: 'echo a message back' },
-  });
-  const echoPayload = JSON.parse(textOf(echoRetrieve));
+  const { payload: echoPayload } = await retrieveTopTools(client, 'echo a message back');
   assert.ok(
     echoPayload.candidates.some((c) => c.tool === 'everything.echo'),
     `everything.echo ranked: ${echoPayload.candidates.slice(0, 5).map((c) => c.tool).join(', ')}`,
   );
 
   if (serverIds.includes('thinking')) {
-    const thinkRetrieve = await client.callTool({
-      name: 'retrieve_tools',
-      arguments: { query: 'think through this step by step' },
-    });
-    const thinkPayload = JSON.parse(textOf(thinkRetrieve));
+    const { payload: thinkPayload } = await retrieveTopTools(
+      client,
+      'think through this refactor step by step',
+    );
     assert.ok(
       thinkPayload.candidates.some((c) => c.tool === 'thinking.sequentialthinking'),
       `thinking tool ranked: ${thinkPayload.candidates.slice(0, 5).map((c) => c.tool).join(', ')}`,

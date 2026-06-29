@@ -14,6 +14,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { performance } from 'node:perf_hooks';
 import { writeBlindManifestConfig, writeDevWorkbenchConfig } from '../smoke/build-real-config.mjs';
+import { runAuditLoopCheck } from './lib/audit-loop.mjs';
 import { compareRounds } from './lib/compare.mjs';
 import { parseEvalRecallAt8 } from './lib/parse-eval.mjs';
 
@@ -84,7 +85,10 @@ async function runRound(round, workDir) {
   console.log(stress.stdout);
   assert.ok(stress.ok, `round ${round} stress failed`);
 
-  const { configPath, includeGit } = writeDevWorkbenchConfig(roundDir, { repoRoot: REPO });
+  const { configPath, includeGit, synonymsFile } = writeDevWorkbenchConfig(roundDir, { repoRoot: REPO });
+  const cfg = JSON.parse(readFileSync(configPath, 'utf8'));
+  assert.equal(cfg.synonymsFile, './business-to-dev.json', 'dev config uses starter synonymsFile');
+  assert.ok(readFileSync(synonymsFile, 'utf8').includes('"bug"'), 'starter synonyms copied');
   const devCasesPath = join(roundDir, 'dev-cases.jsonl');
   writeFileSync(devCasesPath, filterCases(DEV_CASES, includeGit).join('\n') + '\n');
 
@@ -118,6 +122,9 @@ async function main() {
 
   console.log(`quartermaster regression (${ci ? 'ci' : local ? 'local' : 'full'}, ${ROUNDS} rounds)`);
 
+  const auditLoop = runAuditLoopCheck(REPO);
+  console.log(`audit-loop: ok (${auditLoop.draftCaseCount} draft cases from sample audit)\n`);
+
   const rounds = [];
   for (let r = 1; r <= ROUNDS; r++) {
     rounds.push(await runRound(r, workDir));
@@ -132,6 +139,7 @@ async function main() {
     mode: ci ? 'ci' : local ? 'local' : 'full',
     rounds: ROUNDS,
     durationMs: Math.round(performance.now() - started),
+    auditLoop,
     round1: rounds[0],
     round2: rounds[1],
     comparison: { ok: comparison.ok, issues: comparison.issues },

@@ -1,12 +1,13 @@
 {"query":"what files are in this folder","expectedTool":"filesystem.list_directory"}
 {"query":"open and read a local config file","expectedTool":"filesystem.read_text_file"}
 {"query":"find files matching a pattern in the repo","expectedTool":"filesystem.search_files"}
-{"query":"show the folder structure as a tree","expectedTool":"filesystem.directory_tree"}
+{"query":"show the directory tree","expectedTool":"filesystem.directory_tree"}
 {"query":"remember the API listens on port 3000","expectedTool":"memory.create_entities"}
 {"query":"search my notes about the API port","expectedTool":"memory.search_nodes"}
-{"query":"break this bug down step by step","expectedTool":"thinking.sequentialthinking"}
+{"query":"think through this refactor step by step","expectedTool":"thinking.sequentialthinking"}
 {"query":"echo back a ping for health check","expectedTool":"everything.echo"}
 {"query":"which files have I modified","expectedTool":"git.git_status"}
-{"query":"see the history of changes","expectedTool":"git.git_log"}
+{"query":"see the commit history","expectedTool":"git.git_log"}
 {"query":"what have I changed but not staged yet","expectedTool":"git.git_diff_unstaged"}
 {"query":"switch to a different branch","expectedTool":"git.git_checkout"}
+{"query":"save my work to version control","expectedTool":"git.git_add"}

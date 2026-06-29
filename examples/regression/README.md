@@ -3,12 +3,18 @@
 Runs **smoke + stress twice** and compares metrics between rounds — the way a
 dev team would re-run the suite before a release to check for flakiness.
 
-## What runs (each round)
+## What runs
+
+**Once per suite:**
+
+- **Audit loop** — `eval --from-audit` on `packages/cli/test/fixtures/sample-audit.jsonl` (draft + replay against dev config)
+
+**Each round (×2):**
 
 1. **Smoke** — dev workbench federation (filesystem, memory, everything, thinking, git)
 2. **Stress** — ranker scale, static MCP, federation load, chaos
-3. **Dev workbench eval** — real downstream tools, colloquial dev queries
-4. **Blind manifest eval** — `bench/cases/real-mcp-blind.json` corpus (filesystem + git queries, no synonym tuning)
+3. **Dev workbench eval** — live downstreams, `synonymsFile` + org synonyms, colloquial queries
+4. **Blind manifest eval** — `bench/cases/real-mcp-blind.json` corpus (no synonyms — honest untuned floor)
 
 ## Commands
 
@@ -29,14 +35,16 @@ Between round 1 and round 2:
 
 Latest report: [`results/latest.json`](results/latest.json) (written each run).
 
-## Dev workbench (no API keys)
+## Per-team tuning (dev workbench)
 
-| Server | Package |
-|--------|---------|
-| filesystem | `@modelcontextprotocol/server-filesystem` |
-| memory | `@modelcontextprotocol/server-memory` |
-| everything | `@modelcontextprotocol/server-everything` |
-| thinking | `@modelcontextprotocol/server-sequential-thinking` |
-| git | `uvx mcp-server-git` (when `uvx` on PATH) |
+Config is built by [`build-real-config.mjs`](../smoke/build-real-config.mjs):
+
+| Piece | Source |
+|-------|--------|
+| `synonymsFile` | `examples/synonyms/business-to-dev.json` |
+| Org synonyms | Inline in generated config (`remember`, `think`, …) |
+| Eval cases | [`eval-cases-dev-workbench.jsonl`](eval-cases-dev-workbench.jsonl) |
+
+Blind eval intentionally **omits** synonyms — it measures the untuned floor on a static manifest.
 
 Optional with tokens: `node examples/smoke/run-gjs-eval.mjs` (GitHub + Slack).

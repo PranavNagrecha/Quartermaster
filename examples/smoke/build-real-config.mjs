@@ -1,11 +1,19 @@
 /**
  * Dev workbench configs — real public MCP servers engineers run locally (no API keys).
  * filesystem + memory + everything + sequential-thinking + git (uvx when available)
+ *
+ * Mirrors the per-team setup documented in README: starter synonymsFile +
+ * small org-specific inline synonyms.
  */
-import { realpathSync, writeFileSync } from 'node:fs';
+import { copyFileSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const MODULE_DIR = dirname(fileURLToPath(import.meta.url));
+const DEFAULT_REPO = join(MODULE_DIR, '..', '..');
+const STARTER_SYNONYMS_NAME = 'business-to-dev.json';
 
 /** @returns {boolean} */
 export function hasUvx() {
@@ -18,7 +26,7 @@ export function hasUvx() {
  * @param {{ repoRoot?: string; includeGit?: boolean; includeThinking?: boolean }} [opts]
  */
 export function writeDevWorkbenchConfig(dir, opts = {}) {
-  const repoRoot = opts.repoRoot ?? process.cwd();
+  const repoRoot = opts.repoRoot ?? DEFAULT_REPO;
   const fsRoot = realpathSync(tmpdir());
   const servers = [
     {
@@ -55,22 +63,20 @@ export function writeDevWorkbenchConfig(dir, opts = {}) {
     });
   }
 
+  copyFileSync(join(repoRoot, 'examples', 'synonyms', STARTER_SYNONYMS_NAME), join(dir, STARTER_SYNONYMS_NAME));
+
   const configPath = join(dir, 'quartermaster-dev.json');
   writeFileSync(
     configPath,
     JSON.stringify(
       {
         servers,
+        synonymsFile: `./${STARTER_SYNONYMS_NAME}`,
         synonyms: {
-          folder: ['directory'],
-          file: ['read'],
           remember: ['memory', 'store', 'note'],
-          branch: ['git'],
-          commit: ['history', 'log'],
-          debug: ['think', 'step'],
-          refactor: ['think', 'plan'],
-          todo: ['search', 'find'],
+          think: ['sequential', 'step', 'reason'],
         },
+        ranker: { expansionWeight: 0.5 },
         k: 8,
       },
       null,
@@ -78,15 +84,41 @@ export function writeDevWorkbenchConfig(dir, opts = {}) {
     ),
   );
 
-  return { configPath, fsRoot, serverIds: servers.map((s) => s.id), includeGit };
+  return {
+    configPath,
+    fsRoot,
+    serverIds: servers.map((s) => s.id),
+    includeGit,
+    synonymsFile: join(dir, STARTER_SYNONYMS_NAME),
+  };
 }
 
 /** @deprecated alias */
 export const writeRealServersConfig = writeDevWorkbenchConfig;
 
-/** Static manifest for ranker regression (no live GitHub/fetch). */
+/** Static blind manifest — no synonyms (honest untuned floor). */
 export function writeBlindManifestConfig(dir, tools) {
   const configPath = join(dir, 'quartermaster-blind.json');
   writeFileSync(configPath, JSON.stringify({ tools, k: 8 }, null, 2));
   return configPath;
+}
+
+/** Heritage manifest + starter synonyms for ranker regression. */
+export function writeHeritageConfig(dir, repoRoot = DEFAULT_REPO) {
+  const heritage = JSON.parse(readFileSync(join(repoRoot, 'bench', 'cases', 'heritage-sfi.json'), 'utf8'));
+  copyFileSync(join(repoRoot, 'examples', 'synonyms', STARTER_SYNONYMS_NAME), join(dir, STARTER_SYNONYMS_NAME));
+  const configPath = join(dir, 'quartermaster-heritage.json');
+  writeFileSync(
+    configPath,
+    JSON.stringify(
+      {
+        tools: heritage.tools,
+        synonymsFile: `./${STARTER_SYNONYMS_NAME}`,
+        k: 8,
+      },
+      null,
+      2,
+    ),
+  );
+  return { configPath, caseCount: heritage.cases.length };
 }
