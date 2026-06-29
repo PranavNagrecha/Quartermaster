@@ -1,0 +1,3 @@
+{"query":"open a new issue","expectedTool":"echo.create_issue"}
+{"query":"search source code","expectedTool":"echo.search_code"}
+{"query":"send a message to the channel","expectedTool":"echo.send_message"}

@@ -1,0 +1,14 @@
+{
+  "servers": [
+    {
+      "id": "filesystem",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"]
+    }
+  ],
+  "synonyms": {
+    "folder": ["directory"],
+    "file": ["read"]
+  },
+  "k": 8
+}

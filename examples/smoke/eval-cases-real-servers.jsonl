@@ -1,0 +1,7 @@
+{"query":"what files are in this folder","expectedTool":"filesystem.list_directory"}
+{"query":"read a text file from disk","expectedTool":"filesystem.read_text_file"}
+{"query":"remember that the user prefers dark mode","expectedTool":"memory.create_entities"}
+{"query":"search my knowledge graph for dark mode","expectedTool":"memory.search_nodes"}
+{"query":"echo this message back to me","expectedTool":"everything.echo"}
+{"query":"which files have I changed in git","expectedTool":"git.git_status"}
+{"query":"show the commit history","expectedTool":"git.git_log"}

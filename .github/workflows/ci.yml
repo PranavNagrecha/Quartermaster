@@ -21,6 +21,17 @@ jobs:
       - run: pnpm -r lint
       - run: pnpm -r test
       - run: pnpm bench -- --ci
+      - name: Product smoke (npm pack consumer path)
+        run: pnpm smoke
+      - name: Stress test
+        run: pnpm stress:ci
+      - name: Eval gate (static fixture)
+        run: |
+          pnpm quartermaster eval \
+            --ci \
+            --min-r8 0.5 \
+            --config packages/cli/test/fixtures/eval-config.json \
+            --cases packages/cli/test/fixtures/eval-cases.jsonl
       - name: Generate SBOM for quartermaster-mcp
         working-directory: packages/proxy
         run: |

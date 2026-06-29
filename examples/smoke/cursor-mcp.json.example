@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "quartermaster": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "quartermaster-mcp",
+        "--config",
+        "/absolute/path/to/examples/smoke/quartermaster-filesystem.json"
+      ],
+      "env": {
+        "QM_AUDIT": "1",
+        "QM_AUDIT_FILE": "/absolute/path/to/audit.jsonl"
+      }
+    }
+  }
+}

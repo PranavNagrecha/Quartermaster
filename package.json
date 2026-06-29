@@ -20,6 +20,12 @@
     "test": "pnpm -r test",
     "lint": "pnpm -r lint",
     "bench": "node bench/run.mjs",
-    "bench:regen": "node bench/generate.mjs && node bench/run.mjs"
+    "bench:regen": "node bench/generate.mjs && node bench/run.mjs",
+    "smoke": "node examples/smoke/run-smoke.mjs",
+    "smoke:npx": "node examples/smoke/run-smoke.mjs --npx",
+    "smoke:local": "node examples/smoke/run-smoke.mjs --local",
+    "stress": "node examples/stress/run-stress.mjs",
+    "stress:quick": "node examples/stress/run-stress.mjs --quick",
+    "stress:ci": "node examples/stress/run-stress.mjs --ci"
   }
 }
