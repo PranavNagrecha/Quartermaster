@@ -30,7 +30,7 @@ jobs:
           cd ../../.sbom-work/pkg/package
           node -e "const fs=require('fs'); const p=JSON.parse(fs.readFileSync('package.json','utf8')); delete p.devDependencies; fs.writeFileSync('package.json', JSON.stringify(p,null,2))"
           npm install --omit=dev --ignore-scripts
-          npx --yes @cyclonedx/cyclonedx-npm@1.19 --output-file ../../../../sbom.json
+          npx --yes @cyclonedx/cyclonedx-npm@1.19 --output-file ../../../sbom.json
       - uses: actions/upload-artifact@v4
         with:
           name: sbom
